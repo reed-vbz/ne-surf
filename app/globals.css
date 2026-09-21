@@ -1,42 +1,21 @@
 @import "tailwindcss";
 
-/* NE Surf Overview — build-spec tokens */
-:root {
-  --bg-chrome: #0E2029; --bg-toolbar: #2C3A42; --bg-input: #394850; --track-empty: #2C3F49;
-  --accent: #4798B7; --streamline: #64D5CC;
-  --q-good: #41C776; --q-moderate: #F3C79E; --q-poor: #9C9EA1; --wind-cross: #E66729;
-  --text-1: #E8EEF2; --text-2: #B8C7D1; --text-3: #9FB1BC;
-  --grad-swell: linear-gradient(90deg, #64D5CC 0%, #4798B7 40%, #2B5BC7 75%, #163797 100%);
-  --grad-wind: linear-gradient(90deg, #27A055 0%, #A8C24A 45%, #F0A24A 75%, #E66729 100%);
-}
-@theme inline {
-  --color-chrome: var(--bg-chrome); --color-toolbar: var(--bg-toolbar); --color-input: var(--bg-input); --color-track: var(--track-empty);
-  --color-accent: var(--accent); --color-streamline: var(--streamline);
-  --color-good: var(--q-good); --color-moderate: var(--q-moderate); --color-poor: var(--q-poor); --color-cross: var(--wind-cross);
-  --color-t1: var(--text-1); --color-t2: var(--text-2); --color-t3: var(--text-3);
-  --font-sans: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
-}
-html, body { background: var(--bg-chrome); color: var(--text-1); font-family: var(--font-barlow), ui-sans-serif, system-ui, sans-serif; }
-.maplibregl-ctrl-attrib { font-size: 9px; background: rgba(14,32,41,.7) !important; color: var(--text-3); }
-.maplibregl-ctrl-attrib a { color: var(--text-2); }
-.panel { background: rgba(14,32,41,.92); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
-.plate { background: rgba(14,32,41,.72); border-radius: 4px; padding: 2px 6px; }
-.t-title { font-size: 15px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.t-panel { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.t-chip { font-size: 10px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
-.t-label { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; line-height: 14px; }
-.t-body { font-size: 10px; font-weight: 500; color: var(--text-2); }
-.t-day { font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.t-micro { font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.fade-in { animation: fadeIn .3s ease-out both; }
-@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-.progress-line { height: 2px; background: var(--accent); animation: progress 1.2s ease-in-out infinite; transform-origin: left; }
-@keyframes progress { 0% { transform: scaleX(0) } 50% { transform: scaleX(.7) } 100% { transform: scaleX(1); opacity: 0 } }
+/* design/ne-surf-handoff/ui-reference.html page basics, verbatim (line-height: normal undoes Tailwind preflight's 1.5) */
+html{line-height:normal}
+body{line-height:normal;margin:0;font-family:'Barlow',system-ui,sans-serif;background:#0e2029;color:#e8eef2;-webkit-font-smoothing:antialiased}
+a{color:#4798b7}a:hover{color:#6bb8d6}
+button{font-family:inherit}
+
+/* ≥44px hit areas for controls whose visual is smaller (build-spec §03 Touch); invisible, no layout change */
+.hit44{position:relative}
+.hit44::after{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+.hit44-seg{position:relative}
+.hit44-seg::after{content:"";position:absolute;left:0;right:0;top:-18px;bottom:-18px}
 
 /* long-form pages (about) */
-.doc h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 .75rem; color: var(--text-1); }
-.doc h2 { font-size: 1.15rem; font-weight: 600; margin: 1.5rem 0 .5rem; color: var(--text-1); }
-.doc p, .doc li { font-size: .95rem; line-height: 1.6; color: var(--text-2); }
+.doc h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 .75rem; color: #e8eef2; }
+.doc h2 { font-size: 1.15rem; font-weight: 600; margin: 1.5rem 0 .5rem; color: #e8eef2; }
+.doc p, .doc li { font-size: .95rem; line-height: 1.6; color: #b8c7d1; }
 .doc ul, .doc ol { padding-left: 1.25rem; margin: .5rem 0; }
 .doc ul { list-style: disc; } .doc ol { list-style: decimal; }
 .doc code { font-size: .85em; background: rgba(255,255,255,.08); padding: 0 .3em; border-radius: 3px; }

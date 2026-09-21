@@ -13,7 +13,8 @@
     "postinstall": "mkdir -p public/vendor/maplibre && cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/vendor/maplibre/",
     "ingest": "cd workers && .venv/bin/python -m nesurf.fetch_ww3 --source aws && .venv/bin/python -m nesurf.fetch_hrrr --res 0.05 && .venv/bin/python -m nesurf.fetch_ndbc && .venv/bin/python -m nesurf.fetch_tides && .venv/bin/python -m nesurf.calibrate",
     "bathy": "cd workers && .venv/bin/python -m nesurf.bathy",
-    "verify:spots": "cd workers && .venv/bin/python -m nesurf.verify_spots"
+    "verify:spots": "cd workers && .venv/bin/python -m nesurf.verify_spots",
+    "diff": "node scripts/pixel-diff.mjs"
   },
   "dependencies": {
     "maplibre-gl": "^6.10.0",
@@ -30,6 +31,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "pixelmatch": "^7.2.0",
+    "playwright-core": "^1.63.0",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"

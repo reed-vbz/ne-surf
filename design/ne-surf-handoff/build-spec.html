@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NE Surf Overview — Build Spec</title>
+</head>
+<body>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Barlow',system-ui,sans-serif;background:#0b1820;color:#e8eef2;-webkit-font-smoothing:antialiased}
+a{color:#4798b7}a:hover{color:#6bb8d6}
+</style>
+
+<div style="width: 1280px; height: 1560px; box-sizing: border-box; background: #0b1820; padding: 48px 56px; display: flex; flex-direction: column; gap: 32px; font-family: 'Barlow', system-ui, sans-serif; color: #e8eef2;">
+
+  <!-- TITLE -->
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 30px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;">NE Surf Overview — Build Spec</div>
+      <div style="font-size: 14px; font-weight: 500; color: #b8c7d1;">Phone 390×844 · dark chrome over a live map · all values in CSS px at 1×</div>
+    </div>
+    <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #9fb1bc;">Font: Barlow (Google Fonts) 500 / 600 / 700 / 800</div>
+  </div>
+
+  <!-- ROW 1: TOKENS + TYPE + LAYOUT -->
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;">
+
+    <!-- COLORS -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #9fb1bc;">01 · Color tokens</div>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500;">
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #0e2029; border: 1px solid rgba(255,255,255,0.14); flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#0E2029</div><div style="color: #b8c7d1;">bg-chrome · header, panels (panels at 92% alpha)</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #2c3a42; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#2C3A42</div><div style="color: #b8c7d1;">bg-toolbar</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #394850; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#394850</div><div style="color: #b8c7d1;">bg-input · search field</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #2c3f49; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#2C3F49</div><div style="color: #b8c7d1;">track-empty · timeline segments</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #4798b7; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#4798B7</div><div style="color: #b8c7d1;">accent · logo tile, timeline fill</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #64d5cc; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#64D5CC</div><div style="color: #b8c7d1;">streamline · wind particles on ocean</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #41c776; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#41C776</div><div style="color: #b8c7d1;">quality-good · pins, rings, EXCELLENT, callout name</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #f3c79e; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#F3C79E</div><div style="color: #b8c7d1;">quality-moderate · peach swell zone</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #9c9ea1; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#9C9EA1</div><div style="color: #b8c7d1;">quality-poor · grey swell zone</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #e66729; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#E66729</div><div style="color: #b8c7d1;">wind-cross-shore · legend end</div></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 28px; height: 28px; border-radius: 6px; background: #e8eef2; flex-shrink: 0;"></div><div style="width: 92px; font-weight: 700;">#E8EEF2</div><div style="color: #b8c7d1;">text-primary · #B8C7D1 secondary · #9FB1BC muted</div></div>
+      </div>
+    </div>
+
+    <!-- TYPE -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #9fb1bc;">02 · Type scale (Barlow)</div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 15px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;">App title 15 / 600 / +4%</div><div style="font-size: 11px; color: #9fb1bc;">header title, uppercase</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">Panel title 11 / 700 / +4%</div><div style="font-size: 11px; color: #9fb1bc;">"7-DAY TIMELINE", "SWELL INTERACTION", "SURF QUALITY HOTSPOT" (10px inside bottom panels)</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 10px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;">Chip label 10 / 600 / +3%</div><div style="font-size: 11px; color: #9fb1bc;">toolbar chips</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">Break label 11 / 700 / +4%</div><div style="font-size: 11px; color: #9fb1bc;">map labels, white, on 72% dark plate</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 11px; font-weight: 500;">Callout body 11 / 500 · <span style="font-weight: 700; color: #41c776;">NAME:</span> 11 / 700 green</div><div style="font-size: 11px; color: #9fb1bc;">"4-6ft @ 12s (SE) | NW Wind"</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 10px; font-weight: 500; color: #b8c7d1;">Panel body 10 / 500 secondary</div><div style="font-size: 11px; color: #9fb1bc;">legend labels are white, 10 / 500</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #9fb1bc;">Day label 9 / 600 / +6% (active = white)</div><div style="font-size: 11px; color: #9fb1bc;">timeline days</div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8c7d1;">Micro 8 / 700 / +8%</div><div style="font-size: 11px; color: #9fb1bc;">"AI-RANKED BREAKS", quality pill captions (colored)</div></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #9fb1bc;">03 · Layout, radii, elevation</div>
+      <div style="display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 500; line-height: 1.45; color: #d6e1e8;">
+        <div><span style="font-weight: 700; color: #ffffff;">Header</span> — safe-area top + 44px bar, 16px side padding, logo tile 28×28 r6, hamburger 44×44 hit area.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Toolbar</span> — 44px tall, 8px side padding, 6px gap. Chips 30px tall, 9px side padding, r6, bg white 10%, border white 16%. Search fills remaining width.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Timeline panel</span> — floats over the map 8px below the toolbar, 6px side margin, r10, padding 8/10/6, three rows (title · track · days), gap 6.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Track</span> — 7 segments, 8px tall, 2px gap, r2. Filled = accent up to and including the selected day. Knob 16px white circle centered on the selected segment. Chevrons 24×24 at the ends.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Floating panels</span> — r8, bg #0E2029 @ 92%, padding 8/10, shadow 0 4 14 black 35%. Layer card top-left, layers button (40×40, r8, 14% border) top-right, both 8px from the timeline.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Bottom</span> — legends stack left (156px wide, 8px gap), hotspot card right (152px wide), 12px side margins, 12px bottom margin above the home indicator.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Callouts</span> — 24px tall, r4, 8px side padding, anchored 12px below-right of the pin, bg #0E2029 @ 92%, shadow 0 3 10 black 40%.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Gradients</span> — swell: #64D5CC → #4798B7 40% → #2B5BC7 75% → #163797. Wind: #27A055 → #A8C24A 45% → #F0A24A 75% → #E66729. Bars 8px, r4.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Touch</span> — every tappable thing has a ≥44px hit area even where the visual is 24–30px.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: COMPONENT GALLERY -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #9fb1bc;">04 · Map components (built in HTML/SVG — lift these as-is)</div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;">
+
+      <!-- PIN + LABEL -->
+      <div style="border-radius: 10px; background: #13394f; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 240px; box-sizing: border-box;">
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8c7d1;">Break marker</div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <svg width="22" height="28" viewBox="0 0 22 28" style="flex-shrink: 0;"><path d="M11 0 C5 0 0 4.8 0 10.8 C0 18.5 11 28 11 28 C11 28 22 18.5 22 10.8 C22 4.8 17 0 11 0 Z" fill="#41c776" stroke="#0e2029" stroke-width="1.5"></path><text x="11" y="14.5" text-anchor="middle" font-family="Barlow, sans-serif" font-size="8" font-weight="800" fill="#0e2029">ME</text></svg>
+          <div style="padding: 3px 6px; border-radius: 4px; background: rgba(14,33,42,0.72); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #ffffff;">Higgins Beach</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <svg width="16" height="20" viewBox="0 0 16 20" style="flex-shrink: 0;"><path d="M8 0 C3.6 0 0 3.5 0 7.8 C0 13.4 8 20 8 20 C8 20 16 13.4 16 7.8 C16 3.5 12.4 0 8 0 Z" fill="#41c776" stroke="#0e2029" stroke-width="1.2"></path><circle cx="8" cy="7.8" r="2.6" fill="#0e2029"></circle></svg>
+          <div style="padding: 3px 6px; border-radius: 4px; background: rgba(14,33,42,0.72); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #ffffff;">Duxbury</div>
+        </div>
+        <div style="font-size: 11px; font-weight: 500; color: #b8c7d1; line-height: 1.4;">Featured break: 22×28 pin with state code (800, 8px). Standard break: 16×20 pin, dot center. Pin fill = quality color. Label plate r4, 3/6 padding, dark 72%.</div>
+      </div>
+
+      <!-- RINGS -->
+      <div style="border-radius: 10px; background: #13394f; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 240px; box-sizing: border-box; position: relative; overflow: hidden;">
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8c7d1;">Swell rings (pulse)</div>
+        <svg width="140" height="140" viewBox="0 0 140 140" style="align-self: center;">
+          <circle cx="70" cy="70" r="66" fill="none" stroke="#41c776" stroke-opacity="0.18" stroke-width="3"></circle>
+          <circle cx="70" cy="70" r="54" fill="none" stroke="#41c776" stroke-opacity="0.28" stroke-width="3"></circle>
+          <circle cx="70" cy="70" r="42" fill="none" stroke="#41c776" stroke-opacity="0.40" stroke-width="3"></circle>
+          <circle cx="70" cy="70" r="30" fill="none" stroke="#41c776" stroke-opacity="0.55" stroke-width="3"></circle>
+          <circle cx="70" cy="70" r="18" fill="none" stroke="#41c776" stroke-opacity="0.75" stroke-width="3"></circle>
+          <circle cx="70" cy="70" r="9" fill="#41c776" fill-opacity="0.9"></circle>
+        </svg>
+        <div style="font-size: 11px; font-weight: 500; color: #b8c7d1; line-height: 1.4;">6 concentric rings, 12px apart, 3px stroke, opacity 18% → 75% inward. Fill color = quality. Animate: radius expands 12px over 2s, opacity fades, loop.</div>
+      </div>
+
+      <!-- CALLOUT + ZONE -->
+      <div style="border-radius: 10px; background: #13394f; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 240px; box-sizing: border-box;">
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8c7d1;">Callout + zone label</div>
+        <div style="height: 24px; padding: 0px 8px; border-radius: 4px; background: rgba(14,33,42,0.92); box-shadow: 0px 3px 10px rgba(0,0,0,0.4); display: inline-flex; align-self: flex-start; align-items: center; gap: 4px; white-space: nowrap; font-size: 11px; font-weight: 500; color: #ffffff;">
+          <span style="font-weight: 700; color: #41c776; letter-spacing: 0.02em;">HIGGINS:</span><span>4-6ft @ 12s (SE) | NW Wind</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <div style="padding: 2px 6px; border-radius: 4px; background: rgba(14,33,42,0.72); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff;">Poor</div>
+          <div style="padding: 2px 6px; border-radius: 4px; background: rgba(14,33,42,0.72); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #41c776;">Excellent</div>
+        </div>
+        <div style="font-size: 11px; font-weight: 500; color: #b8c7d1; line-height: 1.4;">Callout format: NAME: {min}-{max}ft @ {period}s ({swell dir}) | {wind dir} Wind. Only the two top-ranked breaks show a callout at rest; tapping any pin opens its callout and closes the others.</div>
+      </div>
+
+      <!-- MAP CONTROLS + CHIPS -->
+      <div style="border-radius: 10px; background: #13394f; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 240px; box-sizing: border-box;">
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8c7d1;">Chips + map control</div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <div style="height: 30px; padding: 0px 9px; border-radius: 6px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16); color: #e8eef2; font-size: 10px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; box-sizing: border-box;">Default</div>
+          <div style="height: 30px; padding: 0px 9px; border-radius: 6px; background: #4798b7; border: 1px solid #4798b7; color: #0e2029; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; box-sizing: border-box;">Active</div>
+          <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(14,33,42,0.92); border: 1px solid rgba(255,255,255,0.14); box-shadow: 0px 4px 14px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8eef2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 21 8 12 13 3 8 12 3"></polygon><polyline points="3 12 12 17 21 12"></polyline><polyline points="3 16 12 21 21 16"></polyline></svg>
+          </div>
+        </div>
+        <div style="font-size: 11px; font-weight: 500; color: #b8c7d1; line-height: 1.4;">Chips are a single-select mode switch (Forecast slider · Refraction map · Live buoy feed). Active chip = accent fill, dark text. Icons are 13px stroke SVG, 2px stroke, white. Layers button opens a bottom sheet toggling: satellite, swell zones, wind streamlines, rings, labels.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3: LAYER STACK + BEHAVIOR -->
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #9fb1bc;">05 · Map layer stack (bottom → top)</div>
+      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; line-height: 1.45; color: #d6e1e8;">
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">0</div><div><span style="font-weight: 700; color: #ffffff;">Satellite basemap</span> — true-color imagery, no roads/POI labels. Camera locked to a NE-coast bounding box (Kennebunkport → Montauk), pan/zoom within it.</div></div>
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">1</div><div><span style="font-weight: 700; color: #ffffff;">Swell-quality raster</span> — smooth-edged zones over water only (clip to ocean mask): green #41C776, peach #F3C79E, grey #9C9EA1 at ~65% opacity, 40px feathered edges. Land is never tinted.</div></div>
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">2</div><div><span style="font-weight: 700; color: #ffffff;">Wind streamlines</span> — particle/flow layer, 1px cyan #64D5CC lines, 70% opacity, fading tails, follow the wind vector field; ocean only.</div></div>
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">3</div><div><span style="font-weight: 700; color: #ffffff;">Swell rings</span> — one pulse per active break, radius scaled to swell height, color = quality.</div></div>
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">4</div><div><span style="font-weight: 700; color: #ffffff;">Break markers + labels</span> — pin left of a plated uppercase label; collision-avoid labels at low zoom (drop the least-ranked first).</div></div>
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">5</div><div><span style="font-weight: 700; color: #ffffff;">Callouts + zone labels</span> — plated text, never overlap a marker.</div></div>
+        <div style="display: flex; gap: 10px;"><div style="width: 22px; font-weight: 800; color: #64d5cc;">6</div><div><span style="font-weight: 700; color: #ffffff;">Chrome</span> — header, toolbar, timeline, layer card, layers button, legends, hotspot card. Fixed; the map scrolls under them.</div></div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #9fb1bc;">06 · Behavior</div>
+      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; line-height: 1.45; color: #d6e1e8;">
+        <div><span style="font-weight: 700; color: #ffffff;">Timeline</span> — drag the knob or tap a day/chevron. Selected day re-renders layers 1–3 and both callouts; date label updates; segments up to the selected day fill with accent. Snap to whole days; 200ms ease on the knob.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Pins</span> — tap: open that break's callout, dim other rings to 40%. Tap map: close. Long-press: nothing (no hidden gestures).</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Hotspot card</span> — always shows the #1 ranked break for the selected day. Tapping it flies the camera to that pin.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Toolbar modes</span> — Forecast slider = this screen. Refraction map swaps layer 1 for a refraction/bathymetry raster. Live buoy feed swaps rings for buoy markers with live readings. Chrome never changes between modes.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Search</span> — type-ahead over break names; selecting one flies to it and opens its callout.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Empty / loading</span> — map tiles first, then zones fade in (300ms), then streamlines start. Never show a spinner over the map; show a thin accent progress line under the toolbar.</div>
+        <div><span style="font-weight: 700; color: #ffffff;">Do not</span> — add a light theme, a status-bar mock, drop shadows on text, or any panel wider than 168px on a 390 screen. Map must stay ≥ 60% of the visible height.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
