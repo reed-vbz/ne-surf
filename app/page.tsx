@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Timeline from "@/components/timeline/Timeline";
 import SpotPanel from "@/components/spots/SpotPanel";
-import type { BuoyDatum, MarkerDatum } from "@/components/map/SurfMap";
+import type { BuoyDatum, Layers, MarkerDatum } from "@/components/map/SurfMap";
 import { atTime, loadHrrrStep, loadWw3Step, type HrrrStep, type Ww3Step } from "@/lib/cache";
 import { bestWindow, forecastFor } from "@/lib/forecast";
 import { BAND_LABEL } from "@/lib/quality";
@@ -12,7 +12,8 @@ import { SPOTS } from "@/lib/spots";
 import { hoursAgo, useForecastData } from "@/lib/useForecastData";
 
 const SurfMap = dynamic(() => import("@/components/map/SurfMap"), { ssr: false });
-const DOT = { red: "bg-red-500", yellow: "bg-yellow-400", green: "bg-emerald-500" };
+const DOT = { grey: "bg-slate-400", yellow: "bg-yellow-400", green: "bg-emerald-500" };
+const compass = (d: number) => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
 const fmtShort = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", timeZone: "America/New_York" });
 
 export default function Page() {
@@ -22,8 +23,9 @@ export default function Page() {
   const [hrrrStep, setHrrrStep] = useState<HrrrStep | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [showWind, setShowWind] = useState(true);
-  const [showSwell, setShowSwell] = useState(true);
+  const [layers, setLayers] = useState<Layers>({ swellShade: true, streamlines: true, windShade: true, windHeat: false, rings: true });
+  const [basemap, setBasemap] = useState<"satellite" | "light">("satellite");
+  const toggle = (k: keyof Layers) => setLayers((l) => ({ ...l, [k]: !l[k] }));
   const [listOpen, setListOpen] = useState(false);
 
   const { ww3, hrrr } = data;
@@ -43,9 +45,14 @@ export default function Page() {
   const forecasts = useMemo(() => SPOTS.map((spot) => ({ spot, points: forecastFor(spot, data) })), [data]);
   const results = useMemo(() => forecasts.map(({ spot, points }) => ({ spot, now: points[stepIdx] ?? null, best: bestWindow(points) })), [forecasts, stepIdx]);
 
-  const markers: MarkerDatum[] = results.filter((r) => r.now).map(({ spot, now }) => ({
-    id: spot.id, name: spot.name, lat: spot.location.lat, lon: spot.location.lon, score: now!.result.score, color: now!.result.color, face_ft: now!.result.face_ft,
-  }));
+  const top = [...results].filter((r) => r.now).sort((a, b) => b.now!.result.score - a.now!.result.score).slice(0, 2).filter((r) => r.now!.result.score >= 30).map((r) => r.spot.id);
+  const markers: MarkerDatum[] = results.filter((r) => r.now).map(({ spot, now }) => {
+    const d = now!.result.dominant, w = now!.cond.wind;
+    const callout = top.includes(spot.id) && d
+      ? `${spot.name.toUpperCase()}: ${now!.result.face_ft.toFixed(0)}–${(now!.result.face_ft * 1.25).toFixed(0)} ft @ ${d.tp.toFixed(0)} s (${compass(d.dp)})${w ? ` | ${compass(w.dir_from_deg)} wind` : ""}`
+      : undefined;
+    return { id: spot.id, name: spot.name, lat: spot.location.lat, lon: spot.location.lon, score: now!.result.score, color: now!.result.color, face_ft: now!.result.face_ft, callout };
+  });
   const buoys: BuoyDatum[] = (ww3?.spots.buoys ?? []).map((b) => {
     const o = data.ndbc?.buoys[b.id];
     const ok = !!o && o.status === "ok" && o.wvht_m != null;
@@ -77,7 +84,7 @@ export default function Page() {
       <SurfMap markers={markers} buoys={buoys} selectedId={selected} onSelect={setSelected}
         ww3={ww3 && ww3Step ? { index: ww3.index, step: ww3Step } : null}
         hrrr={hrrr && hrrrStep ? { index: hrrr.index, step: hrrrStep } : null}
-        showWind={showWind} showSwell={showSwell} />
+        layers={layers} basemap={basemap} />
 
       <header className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100vw-1.5rem)] flex-col gap-2 md:left-4 md:top-4">
         <div className="pointer-events-auto rounded-xl bg-white/90 px-3 py-2 shadow-lg backdrop-blur md:px-4">
@@ -89,9 +96,13 @@ export default function Page() {
             {ww3 ? `GFS-Wave ${ww3.index.cycle.slice(0, 13)}Z` : data.loading ? "loading…" : "no data"}{hrrr ? ` · HRRR ${hrrr.index.cycle.slice(0, 13)}Z` : ww3 ? " · wind: GFS (coarse)" : ""}
             {age !== null && <span className={age > 12 ? "text-amber-700" : ""}> · fetched {age < 1 ? "<1" : age.toFixed(0)} h ago{age > 12 ? " (stale)" : ""}</span>}
           </p>
-          <div className="mt-1 flex gap-3 text-xs">
-            <label className="flex items-center gap-1"><input type="checkbox" checked={showSwell} onChange={(e) => setShowSwell(e.target.checked)} /> swell</label>
-            <label className="flex items-center gap-1"><input type="checkbox" checked={showWind} onChange={(e) => setShowWind(e.target.checked)} /> wind</label>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.swellShade} onChange={() => toggle("swellShade")} /> swell shading</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.streamlines} onChange={() => toggle("streamlines")} /> streamlines</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.windShade} onChange={() => toggle("windShade")} /> coast wind</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.rings} onChange={() => toggle("rings")} /> hotspots</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.windHeat} onChange={() => toggle("windHeat")} /> wind heat</label>
+            <button onClick={() => setBasemap((b) => (b === "satellite" ? "light" : "satellite"))} className="rounded border border-slate-300 px-1.5 text-slate-700">{basemap === "satellite" ? "light map" : "satellite"}</button>
             <button onClick={() => setListOpen((o) => !o)} className="ml-auto rounded bg-slate-900 px-2 py-0.5 text-white md:hidden">spots</button>
           </div>
         </div>
@@ -114,11 +125,31 @@ export default function Page() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-24 right-3 z-10 hidden rounded-lg bg-white/85 px-2 py-1.5 text-[10px] text-slate-600 shadow md:block">
-        <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> good ≥60 <span className="ml-2 h-2 w-2 rounded-full bg-yellow-400" /> fair 30–59 <span className="ml-2 h-2 w-2 rounded-full bg-red-500" /> poor</div>
-        <div className="mt-1 flex items-center gap-1">wind <span className="h-2 w-24 rounded" style={{ background: "linear-gradient(90deg,#78c8ff,#50c878,#fad23c,#fa7828,#c81e78)" }} /> 0–30 kt</div>
-        <div className="mt-1 flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-900" /> buoy (live Hs, period)</div>
+      <div className="pointer-events-none absolute bottom-24 left-4 z-10 hidden w-56 flex-col gap-2 md:flex">
+        <div className="rounded-lg bg-slate-900/85 px-3 py-2 text-[10px] text-slate-200 shadow backdrop-blur">
+          <div className="font-semibold uppercase tracking-wide text-white">Swell interaction</div>
+          <div className="mt-1 h-2 rounded" style={{ background: "linear-gradient(90deg,#ff6a00,#ffc400,#16c3b0,#1f6dff,#1230c8)" }} />
+          <div className="flex justify-between"><span>messy windswell</span><span>clean groundswell</span></div>
+        </div>
+        <div className="rounded-lg bg-slate-900/85 px-3 py-2 text-[10px] text-slate-200 shadow backdrop-blur">
+          <div className="font-semibold uppercase tracking-wide text-white">Wind overlay (coast)</div>
+          <div className="mt-1 h-2 rounded" style={{ background: "linear-gradient(90deg,#1fe06b,#8b95a3,#ff5a1f)" }} />
+          <div className="flex justify-between"><span>offshore</span><span>cross</span><span>onshore</span></div>
+        </div>
       </div>
+      {ranked[0] && (
+        <div className="pointer-events-none absolute bottom-24 right-3 z-10 hidden w-60 rounded-lg bg-slate-900/85 px-3 py-2 text-[11px] text-slate-200 shadow backdrop-blur md:block">
+          <div className="font-semibold uppercase tracking-wide text-white">Surf quality hotspot</div>
+          <div className="mt-1 flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${DOT[ranked[0].now!.result.color]}`} />
+            <span className="font-semibold text-white">{BAND_LABEL[ranked[0].now!.result.band]}</span>
+          </div>
+          <div>{ranked[0].spot.name}: ~{ranked[0].now!.result.face_ft.toFixed(0)}–{(ranked[0].now!.result.face_ft * 1.25).toFixed(0)} ft
+            {ranked[0].now!.result.dominant ? ` @ ${ranked[0].now!.result.dominant.tp.toFixed(0)} s` : ""}</div>
+          <div className="mt-1 flex gap-2"><span className="h-1.5 flex-1 rounded bg-emerald-500" /><span className="h-1.5 flex-1 rounded bg-yellow-400" /><span className="h-1.5 flex-1 rounded bg-slate-400" /></div>
+          <div className="flex justify-between text-[9px] uppercase"><span>green</span><span>moderate</span><span>poor</span></div>
+        </div>
+      )}
 
       {ww3 && (
         <div className="absolute bottom-3 left-3 right-3 z-10 md:bottom-4 md:left-1/2 md:w-[640px] md:-translate-x-1/2">

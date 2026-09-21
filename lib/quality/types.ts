@@ -71,7 +71,7 @@ export interface Conditions {
 }
 
 export type Band = "very_poor" | "poor" | "poor_to_fair" | "fair" | "fair_to_good" | "good" | "epic";
-export type Color = "red" | "yellow" | "green";
+export type Color = "grey" | "yellow" | "green";
 
 export interface ScoreBreakdown {
   score: number;              // 0-100

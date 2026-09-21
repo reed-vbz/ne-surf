@@ -60,7 +60,7 @@ describe("calibrationFor", () => {
 describe("byDay", () => {
   it("groups by New York local day", () => {
     const mk = (iso: string, score: number): ForecastPoint => ({ hour: 0, valid_time: iso, cond: { trains: [], wind: null, tide: null },
-      result: { score, band: "fair", color: "yellow", face_ft: 1, face_m: 0.3, components: { swell_angle: 1, swell_size: 1, swell_period: 1, wind: 1, tide: 1 }, dominant: null, usable_hs_m: 1, nearshore: { xi: null, breaker: "unknown", shape: 1, method: "x" }, reasons: [] } });
+      result: { score, band: "fair", color: "yellow" as const, face_ft: 1, face_m: 0.3, components: { swell_angle: 1, swell_size: 1, swell_period: 1, wind: 1, tide: 1 }, dominant: null, usable_hs_m: 1, nearshore: { xi: null, breaker: "unknown", shape: 1, method: "x" }, reasons: [] } });
     const days = byDay([mk("2026-09-21T03:00:00Z", 10), mk("2026-09-21T06:00:00Z", 40), mk("2026-09-22T06:00:00Z", 20)]);
     expect(days).toHaveLength(3);           // 03Z on the 21st is still the 20th in New York; 06Z is the 21st; the 22nd is its own day
     expect(days.map((d) => d.day)).toEqual(["2026-09-20", "2026-09-21", "2026-09-22"]);

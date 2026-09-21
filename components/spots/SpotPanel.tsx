@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { BathySpot, NdbcBuoy } from "@/lib/cache";
 import { BAND_LABEL, type ScoreBreakdown, type Spot, type Conditions } from "@/lib/quality";
 
-const COLORS = { red: "bg-red-500", yellow: "bg-yellow-400", green: "bg-emerald-500" };
+const COLORS = { grey: "bg-slate-400", yellow: "bg-yellow-400", green: "bg-emerald-500" };
 const compass = (d: number) => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
 const ft = (m: number) => (m * 3.28084).toFixed(1);
 

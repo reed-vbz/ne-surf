@@ -2,7 +2,7 @@
 import type { TideStation } from "@/lib/cache";
 import type { ForecastPoint } from "@/lib/forecast";
 
-const COL = { red: "#e5484d", yellow: "#f5c400", green: "#2fbf71" };
+const COL = { grey: "#9aa3ad", yellow: "#f5c400", green: "#2fbf71" };
 const fmtDay = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "numeric", day: "numeric", timeZone: "America/New_York" });
 const dayOf = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
 

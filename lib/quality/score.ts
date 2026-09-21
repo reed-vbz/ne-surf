@@ -13,7 +13,7 @@ export const BAND_LABEL: Record<Band, string> = {
 };
 
 export const bandFor = (score: number): Band => BANDS.find(([max]) => score < max)![1];
-export const colorFor = (score: number): Color => (score < 30 ? "red" : score < 60 ? "yellow" : "green");
+export const colorFor = (score: number): Color => (score < 30 ? "grey" : score < 60 ? "yellow" : "green");
 
 /**
  * Surf Quality Score, 0-100.

@@ -11,7 +11,7 @@ import { useForecastData } from "@/lib/useForecastData";
 const fmtTime = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", timeZone: "America/New_York" });
 const fmtDay = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "America/New_York" });
 const compass = (d: number) => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
-const DOT = { red: "bg-red-500", yellow: "bg-yellow-400", green: "bg-emerald-500" };
+const DOT = { grey: "bg-slate-400", yellow: "bg-yellow-400", green: "bg-emerald-500" };
 
 export default function SpotView({ id }: { id: string }) {
   const spot = spotById(id);

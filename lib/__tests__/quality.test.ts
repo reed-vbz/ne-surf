@@ -96,7 +96,7 @@ describe("scoreSpot", () => {
   });
   it("same swell, blown out onshore → red", () => {
     const r = scoreSpot(matunuck, { ...ideal, wind: { speed_kts: 22, dir_from_deg: 170 } });
-    expect(r.color).toBe("red");
+    expect(r.color).toBe("grey");
     expect(r.reasons[0]).toMatch(/Blown out/);
   });
   it("flat ocean → very poor", () => {
