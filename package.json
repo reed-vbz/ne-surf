@@ -17,6 +17,11 @@
     "diff": "node scripts/pixel-diff.mjs"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.4.0",
+    "@deck.gl/extensions": "^9.4.0",
+    "@deck.gl/geo-layers": "^9.4.0",
+    "@deck.gl/layers": "^9.4.0",
+    "@deck.gl/mapbox": "^9.4.0",
     "maplibre-gl": "^6.10.0",
     "next": "16.3.5",
     "react": "19.2.8",

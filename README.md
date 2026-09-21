@@ -89,6 +89,22 @@ npm run dev            # http://localhost:3000
 npm test               # score-engine unit tests (vitest)
 ```
 
+## New Hampshire Sandbox — 5-layer marine architecture (`/sandbox/nh`)
+
+The architecture of record for all future map work (Reed's Core Mapping Architecture directive), implemented keyless on
+MapLibre GL + deck.gl `MapboxOverlay` (interleaved) + self-hosted MVT:
+
+| Layer | Source | Rendering |
+|---|---|---|
+| L0 bathymetric base | NOAA CRM 3″ isobath polygons (`workers/nesurf/sandbox_nh.py` → `public/tiles/nh/{z}/{x}/{y}.pbf`, layer `bathy`) | MapLibre `fill`, `interpolate` on `min_depth`: #00E5FF (0–5 m) → #0099CC → #0B192C |
+| L1 physics | HRRR wind + WW3 swell fields → RK2 streamlines (`lib/streamlines.ts`), CRM ray tracing (`lib/refraction.ts`) | deck.gl `TripsLayer` comets (wind cyan, swell energy-coloured), `PathLayer` crest fans |
+| L2 nearshore ribbon | 100 m high-water-mark segments with land→sea normal + exposure (`public/data/nh/ribbon.geojson`, MVT layer `ribbon`) | deck.gl `PathLayer`, #00FF88 / #FFB800 / #FF3366 by wind-to-beach angle |
+| L3 land mask | CRM open-water land polygons (MVT layer `land`, `land.geojson`, `ocean.geojson`) | zero bleed at the data level (streamlines only over CRM water, rays stop at the shore) + optional opaque chart-land fill |
+| L4 annotations | `spots.geojson` | deck.gl `ScatterplotLayer` pulses + HTML pins; hover → React tooltip (height, period, wind, angle off the normal, tier) |
+
+Known limit: deck.gl 9.4's `MaskExtension` does not render in interleaved mode with MapLibre 6, so the mask is enforced by
+the data rather than the GPU; MapLibre 6 also hides `map.transform`, which the overlay shims.
+
 ## Map overlays
 
 All driven by the timeline step (no mocks):
