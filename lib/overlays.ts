@@ -78,10 +78,25 @@ function extend(f: Flat, nlat: number, nlon: number, passes = 2): Flat {
   return cur;
 }
 
-/** Ocean shading: bilinear over the WW3 grid, extended to the coast, cut on the 1 km land mask. */
+/** 3×3 mean over non-null cells: softens the blocks that `extend` leaves in bays and behind islands. */
+function smooth(f: Flat, nlat: number, nlon: number): Flat {
+  const out = f.slice();
+  for (let i = 0; i < nlat; i++) for (let j = 0; j < nlon; j++) {
+    const k = i * nlon + j; if (f[k] == null) continue;
+    let acc = 0, n = 0;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nlat || jj >= nlon) continue;
+      const v = f[ii * nlon + jj]; if (v != null) { acc += v; n++; }
+    }
+    out[k] = acc / n;
+  }
+  return out;
+}
+
+/** Ocean shading: bilinear over the WW3 grid, extended to the coast, smoothed, cut on the 1 km land mask. */
 export function swellShadeDataUrl(index: GridIndex, step: Ww3Step, quality: Flat, scale = 12): string {
   const [nlat, nlon] = index.shape;
-  const q = extend(quality, nlat, nlon);
+  const q = smooth(extend(quality, nlat, nlon, 3), nlat, nlon);
   const c = document.createElement("canvas"); c.width = nlon * scale; c.height = nlat * scale;
   const ctx = c.getContext("2d")!; const img = ctx.createImageData(c.width, c.height);
   const lat0 = index.lat[0], lat1 = index.lat[nlat - 1], lon0 = index.lon[0], lon1 = index.lon[nlon - 1];
