@@ -19,8 +19,8 @@ ne-surf/
 │   ├── spots/[id]/page.tsx        # 7-day chart + day tables for one spot
 │   └── about/page.tsx             # methodology + sources
 ├── components/
-│   ├── map/SurfMap.tsx            # MapLibre GL (OpenFreeMap tiles, no token): markers, wind raster, swell particles
-│   ├── map/SwellParticles.tsx     # canvas particle advection along WW3 DIRPW
+│   ├── map/SurfMap.tsx            # MapLibre GL: satellite (Esri) / light (OpenFreeMap) basemap, markers, buoys, callouts, rasters
+│   ├── map/SwellParticles.tsx     # canvas overlay: time-based streamlines coloured by swell quality + pulsing hotspot rings
 │   ├── spots/SpotPanel.tsx        # score breakdown, trains, wind, tide, bottom profile, live buoys
 │   ├── spots/ForecastChart.tsx    # 7-day SVG strip: score, face, wind, tide
 │   └── timeline/Timeline.tsx      # 0–168 h slider with play
@@ -35,7 +35,8 @@ ne-surf/
 │   ├── conditions.ts              # cache records → Conditions (trains, wind, tide state/phase, calibration)
 │   ├── forecast.ts                # whole-horizon series per spot, best window, by-day grouping
 │   ├── useForecastData.ts         # one hook that loads every cache layer
-│   └── grid.ts                    # flat-grid sampling, wind colour ramp, raster → data URL
+│   ├── grid.ts                    # flat-grid sampling, wind colour ramp, raster → data URL
+│   └── overlays.ts                # per-step rasters: swell-quality ocean shading (cut on the land mask), coastal wind band
 │
 ├── data/
 │   ├── spots.schema.json          # JSON Schema (draft 2020-12) for a surf spot  ← step 1
@@ -87,6 +88,14 @@ npm run verify:spots   # chart-check spots.json (add -- --apply to rewrite it)
 npm run dev            # http://localhost:3000
 npm test               # score-engine unit tests (vitest)
 ```
+
+## Map overlays
+
+All driven by the timeline step (no mocks):
+
+- **Swell interaction** (ocean): colour = swell quality, 0.55 × share of energy that is swell (vs. wind sea) + 0.45 × period (6 s → 14 s). Orange = messy windswell, blue = clean groundswell. Bilinear over the 1/6° WW3 grid, extended to the shoreline and cut on the 1 km land mask. Streamlines use the same colour and travel along the primary swell direction.
+- **Wind overlay** (coast): every land cell within ~5 km of water gets the HRRR wind projected on its local coast normal. Green = offshore, grey = alongshore, orange = onshore, fading inland.
+- **Hotspots**: three staggered pulsing rings per spot, green / yellow / grey by score band, amplitude by band.
 
 ## Workers — quick start
 
