@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Local 4x/day scheduler (macOS launchd) until the GitHub Actions cron is turned on.
+       Install:  cp ops/com.nesurf.ingest.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.nesurf.ingest.plist
+       Remove:   launchctl unload ~/Library/LaunchAgents/com.nesurf.ingest.plist
+       Times are local; GFS-Wave 00/06/12/18Z runs finish ~4-5 h after cycle time (≈ 01:20/07:20/13:20/19:20 EDT). -->
+  <key>Label</key><string>com.nesurf.ingest</string>
+  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>/Users/vbz/Claude/ne-surf/ops/ingest.sh</string></array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>1</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>30</integer></dict>
+  </array>
+  <key>StandardOutPath</key><string>/Users/vbz/Claude/ne-surf/workers/.scratch/ingest.log</string>
+  <key>StandardErrorPath</key><string>/Users/vbz/Claude/ne-surf/workers/.scratch/ingest.log</string>
+  <key>EnvironmentVariables</key><dict><key>PATH</key><string>/usr/local/bin:/usr/bin:/bin:/Users/vbz/.local/bin</string></dict>
+</dict>
+</plist>

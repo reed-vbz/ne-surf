@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root { --background: #f1f5f9; --foreground: #0f172a; }
+body { background: var(--background); color: var(--foreground); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+
+/* long-form pages (about) */
+.doc h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 .75rem; color: #0f172a; }
+.doc h2 { font-size: 1.15rem; font-weight: 600; margin: 1.5rem 0 .5rem; color: #0f172a; }
+.doc p, .doc li { font-size: .95rem; line-height: 1.6; color: #334155; }
+.doc ul, .doc ol { padding-left: 1.25rem; margin: .5rem 0; }
+.doc ul { list-style: disc; } .doc ol { list-style: decimal; }
+.doc code { font-size: .85em; background: #f1f5f9; padding: 0 .3em; border-radius: 3px; }

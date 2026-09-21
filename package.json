@@ -1,0 +1,37 @@
+{
+  "name": "ne-surf",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "mkdir -p public/vendor/maplibre && cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/vendor/maplibre/",
+    "ingest": "cd workers && .venv/bin/python -m nesurf.fetch_ww3 --source aws && .venv/bin/python -m nesurf.fetch_hrrr --res 0.05 && .venv/bin/python -m nesurf.fetch_ndbc && .venv/bin/python -m nesurf.fetch_tides && .venv/bin/python -m nesurf.calibrate",
+    "bathy": "cd workers && .venv/bin/python -m nesurf.bathy",
+    "verify:spots": "cd workers && .venv/bin/python -m nesurf.verify_spots"
+  },
+  "dependencies": {
+    "maplibre-gl": "^6.10.0",
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/maplibre-gl": "^1.13.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

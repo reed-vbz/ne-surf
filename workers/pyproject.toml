@@ -1,0 +1,18 @@
+[project]
+name = "nesurf-workers"
+version = "0.1.0"
+description = "NOAA data ingestion workers for the New England surf forecast app"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "eccodes>=2.37",      # ships its own libeccodes wheel; no Homebrew needed
+    "requests>=2.31",
+    "jsonschema>=4.20",
+    "scipy>=1.12",
+    "xarray>=2024.1",
+    "netCDF4>=1.6",
+    "global-land-mask>=1.0",
+]
+
+[tool.uv]
+package = false

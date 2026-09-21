@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ne-surf/ne-surf/data/spots.schema.json",
+  "title": "New England surf spot catalogue",
+  "description": "One entry per spot. All angles are compass bearings in degrees (0 = N, 90 = E). Swell and wind directions follow the meteorological convention used by NOAA WW3 / HRRR: the direction the swell or wind comes FROM. `facing_deg` is therefore directly comparable to the model's DIRPW: a spot with facing_deg 90 is hit head-on by a swell whose DIRPW is 90.",
+  "type": "object",
+  "required": [
+    "version",
+    "spots"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "spots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/spot"
+      }
+    }
+  },
+  "$defs": {
+    "bearing": {
+      "type": "number",
+      "minimum": 0,
+      "exclusiveMaximum": 360
+    },
+    "latLon": {
+      "type": "object",
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": 40.0,
+          "maximum": 45.0
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -72.5,
+          "maximum": -66.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "sector": {
+      "description": "Arc of bearings from `from_deg` clockwise to `to_deg`. A sector may cross north (e.g. 340 \u2192 20).",
+      "type": "object",
+      "required": [
+        "from_deg",
+        "to_deg"
+      ],
+      "properties": {
+        "from_deg": {
+          "$ref": "#/$defs/bearing"
+        },
+        "to_deg": {
+          "$ref": "#/$defs/bearing"
+        }
+      },
+      "additionalProperties": false
+    },
+    "spot": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "state",
+        "location",
+        "break_type",
+        "facing_deg",
+        "offshore_sample_point",
+        "swell",
+        "wind",
+        "tide",
+        "buoys",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "RI",
+            "MA",
+            "NH",
+            "ME"
+          ]
+        },
+        "area": {
+          "type": "string",
+          "description": "Human grouping for the UI, e.g. 'Rhode Island south shore', 'Outer Cape'."
+        },
+        "location": {
+          "$ref": "#/$defs/latLon",
+          "description": "Where the marker sits \u2014 the peak / takeoff zone, on the coast."
+        },
+        "break_type": {
+          "type": "string",
+          "enum": [
+            "beach",
+            "reef",
+            "point",
+            "jetty",
+            "rivermouth",
+            "slab"
+          ]
+        },
+        "facing_deg": {
+          "$ref": "#/$defs/bearing",
+          "description": "Bearing the break faces (normal to the shoreline, pointing out to sea). Equal to the swell direction that hits it head-on."
+        },
+        "offshore_sample_point": {
+          "$ref": "#/$defs/latLon",
+          "description": "Deep-water point where WW3 is sampled for this spot. WW3 masks the coastal cells as land, so this must sit a few km offshore in an unshadowed direction. The worker snaps it to the nearest wet cell and records the snap distance."
+        },
+        "swell": {
+          "type": "object",
+          "required": [
+            "window",
+            "ideal_deg",
+            "min_period_s",
+            "ideal_period_s",
+            "min_height_m",
+            "ideal_height_m",
+            "max_height_m"
+          ],
+          "properties": {
+            "window": {
+              "$ref": "#/$defs/sector",
+              "description": "Directions that produce rideable waves at all. Outside this arc the swell-angle score is 0."
+            },
+            "ideal_deg": {
+              "$ref": "#/$defs/bearing",
+              "description": "Direction that produces the best shape (often not exactly facing_deg \u2014 points and reefs like a slight angle)."
+            },
+            "angle_tolerance_deg": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 90,
+              "default": 30,
+              "description": "Half-width of full-credit zone around ideal_deg before the angle score starts falling."
+            },
+            "min_period_s": {
+              "type": "number",
+              "minimum": 3
+            },
+            "ideal_period_s": {
+              "type": "number",
+              "minimum": 5
+            },
+            "min_height_m": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Deep-water significant height below which the spot is flat."
+            },
+            "ideal_height_m": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max_height_m": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Above this the spot closes out / maxes out."
+            },
+            "shoaling_factor": {
+              "type": "number",
+              "minimum": 0.2,
+              "maximum": 2.0,
+              "default": 1.0,
+              "description": "Empirical deep-water \u2192 breaking-face multiplier for this spot (calibrate against buoy + reports). Replaces a bathymetry model until the Coastal Relief layer is wired in."
+            }
+          },
+          "additionalProperties": false
+        },
+        "shadow_sectors": {
+          "type": "array",
+          "description": "Swell directions blocked or attenuated by land between deep water and the spot (Block Island, Martha's Vineyard, Nantucket, Cape Cod, Cape Ann). Applied to the swell-angle score as multiplier (1 - attenuation).",
+          "items": {
+            "type": "object",
+            "required": [
+              "from_deg",
+              "to_deg",
+              "attenuation",
+              "by"
+            ],
+            "properties": {
+              "from_deg": {
+                "$ref": "#/$defs/bearing"
+              },
+              "to_deg": {
+                "$ref": "#/$defs/bearing"
+              },
+              "attenuation": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "0 = no effect, 1 = fully blocked."
+              },
+              "by": {
+                "type": "string",
+                "description": "The land mass responsible."
+              },
+              "min_period_s": {
+                "type": "number",
+                "description": "Optional: only long-period swell refracts around the obstacle, so attenuation can be limited to periods below this."
+              },
+              "distance_km": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Median distance to the blocking land along the sector's rays (from verify_spots.py)."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "wind": {
+          "type": "object",
+          "required": [
+            "offshore_deg",
+            "offshore_tolerance_deg",
+            "max_onshore_kts",
+            "max_cross_kts"
+          ],
+          "properties": {
+            "offshore_deg": {
+              "$ref": "#/$defs/bearing",
+              "description": "Wind FROM this bearing is dead offshore. Usually (facing_deg + 180) mod 360, but headlands and valleys can shift it."
+            },
+            "offshore_tolerance_deg": {
+              "type": "number",
+              "minimum": 10,
+              "maximum": 90,
+              "description": "Half-width of the arc still counted as offshore."
+            },
+            "max_onshore_kts": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Onshore component above which the spot is 'blown out' (score \u2192 red)."
+            },
+            "max_cross_kts": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Cross-shore component above which shape degrades."
+            },
+            "glassy_below_kts": {
+              "type": "number",
+              "minimum": 0,
+              "default": 5,
+              "description": "Any direction is fine below this speed."
+            },
+            "hrrr_sample_point": {
+              "$ref": "#/$defs/latLon",
+              "description": "Optional override for where HRRR 10 m wind is sampled (default: location)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "tide": {
+          "type": "object",
+          "required": [
+            "station_id",
+            "station_kind",
+            "preferred"
+          ],
+          "properties": {
+            "station_id": {
+              "type": "string",
+              "pattern": "^[0-9]{7}$",
+              "description": "NOAA CO-OPS station id (verified against mdapi stations.json?type=tidepredictions)."
+            },
+            "station_kind": {
+              "type": "string",
+              "enum": [
+                "reference",
+                "subordinate"
+              ],
+              "description": "reference (R) stations also have observed water level; subordinate (S) stations are prediction-only."
+            },
+            "preferred": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "mid",
+                  "high"
+                ]
+              },
+              "description": "Tide states that work. States are thirds of the day's predicted range: low < 33 %, mid 33\u201367 %, high > 67 %."
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "any",
+                "rising",
+                "falling"
+              ],
+              "default": "any"
+            },
+            "avoid": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "mid",
+                  "high"
+                ]
+              },
+              "description": "States that make it unrideable (dry reef, backwash). Score \u2192 0 rather than merely reduced."
+            },
+            "notes": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "buoys": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{5}$"
+          },
+          "description": "NDBC station ids used to calibrate the WW3 sample for this spot, nearest first."
+        },
+        "skill": {
+          "type": "string",
+          "enum": [
+            "beginner",
+            "intermediate",
+            "advanced",
+            "expert"
+          ]
+        },
+        "season": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "winter",
+              "spring",
+              "summer",
+              "fall"
+            ]
+          },
+          "description": "When the spot typically works (hurricane season = fall for most of the region)."
+        },
+        "notes": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "approximate"
+          ],
+          "description": "'approximate' = coordinates and tuning entered from general knowledge and not yet checked on the ground or against a bathymetry chart."
+        },
+        "verification": {
+          "type": "object",
+          "description": "What verify_spots.py checked and changed (informational).",
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "facing": {
+              "type": "string"
+            },
+            "shadows": {
+              "type": "string"
+            },
+            "window": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

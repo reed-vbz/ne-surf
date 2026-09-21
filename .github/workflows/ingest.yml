@@ -1,0 +1,38 @@
+name: ingest-noaa
+# GFS-Wave cycles are 00/06/12/18 z and finish posting ~4-5 h later; HRRR is hourly.
+# Writes public/cache to the orphan `data` branch (one commit, force-pushed) so main's history never grows.
+on:
+  schedule:
+    - cron: "20 5,11,17,23 * * *"
+  workflow_dispatch:
+concurrency: { group: ingest, cancel-in-progress: false }
+permissions: { contents: write }
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: cd workers && uv venv .venv && uv pip install -p .venv/bin/python -e .
+      - name: restore calibration history from the data branch
+        run: |
+          mkdir -p public/cache/calibration
+          curl -sf "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/data/public/cache/calibration/history.jsonl" -o public/cache/calibration/history.jsonl || true
+      - run: cd workers && .venv/bin/python -m nesurf.fetch_ww3   --source aws --hours 0:168:3
+      - run: cd workers && .venv/bin/python -m nesurf.fetch_hrrr  --res 0.05
+      - run: cd workers && .venv/bin/python -m nesurf.fetch_ndbc
+      - run: cd workers && .venv/bin/python -m nesurf.fetch_tides
+      - run: cd workers && .venv/bin/python -m nesurf.calibrate
+      - name: publish cache to the data branch
+        run: |
+          set -e
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/public" && cp -R public/cache "$tmp/public/cache"
+          cd "$tmp"
+          git init -q -b data
+          git config user.name "ne-surf-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A
+          git commit -qm "cache: noaa $(date -u +%FT%H:%MZ)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" data
