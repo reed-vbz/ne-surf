@@ -22,14 +22,14 @@ interface Props {
   basemap: "satellite" | "light";
 }
 
-const COLORS = { grey: "#9aa3ad", yellow: "#f5c400", green: "#2fbf71" };
+const COLORS = { grey: "#c3cbd4", yellow: "#ffd23f", green: "#3ddc84" };
 const LIGHT_STYLE = "https://tiles.openfreemap.org/styles/positron"; // free, keyless, OpenMapTiles-based
 // Esri World Imagery: free with attribution (https://www.esri.com/en-us/legal/terms/data-attributions)
 const SATELLITE_STYLE: StyleSpecification = {
   version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
   sources: { esri: { type: "raster", tileSize: 256, maxzoom: 18, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
     attribution: "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community" } },
-  layers: [{ id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.35, "raster-brightness-max": 0.85 } }],
+  layers: [{ id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.45, "raster-brightness-max": 0.72, "raster-contrast": 0.1 } }],
 };
 const COORDS: [[number, number], [number, number], [number, number], [number, number]] =
   [[BBOX.west, BBOX.north], [BBOX.east, BBOX.north], [BBOX.east, BBOX.south], [BBOX.west, BBOX.south]];
@@ -53,20 +53,22 @@ function addOverlayLayers(m: MLMap) {
   // anchor layer: rasters are inserted below it
   m.addLayer({ id: "overlay-anchor", type: "background", paint: { "background-opacity": 0 } });
   m.addLayer({ id: "buoy-dot", type: "circle", source: "buoys", paint: {
-    "circle-radius": 5, "circle-color": ["case", ["get", "ok"], "#0f172a", "#94a3b8"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
+    "circle-radius": 3.5, "circle-color": ["case", ["get", "ok"], "#ffffff", "#7f8a96"], "circle-stroke-color": "#0b1526", "circle-stroke-width": 1.5 } });
   m.addLayer({ id: "buoy-label", type: "symbol", source: "buoys", layout: {
     "text-field": ["get", "label"], "text-size": 10, "text-offset": [0, 1], "text-anchor": "top", "text-font": ["Noto Sans Regular"] },
     paint: { "text-color": "#fff", "text-halo-color": "#0f172a", "text-halo-width": 1 } });
   m.addLayer({ id: "spot-dot", type: "circle", source: "spots", paint: {
-    "circle-radius": ["case", ["boolean", ["get", "selected"], false], 9, 7],
-    "circle-color": ["get", "hex"], "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+    "circle-radius": ["case", ["boolean", ["get", "selected"], false], 7, 5],
+    "circle-color": ["get", "hex"], "circle-stroke-color": "#0b1526", "circle-stroke-width": 1.5 } });
   m.addLayer({ id: "spot-label", type: "symbol", source: "spots", layout: {
-    "text-field": ["get", "label"], "text-size": 11, "text-offset": [0, 1.3], "text-anchor": "top", "text-font": ["Noto Sans Bold"], "text-allow-overlap": false },
-    paint: { "text-color": "#fff", "text-halo-color": "#0f172a", "text-halo-width": 1.4 } });
+    "text-field": ["get", "label"], "text-size": 10.5, "text-offset": [0, 1.1], "text-anchor": "top", "text-font": ["Noto Sans Bold"],
+    "text-transform": "uppercase", "text-letter-spacing": 0.06, "text-allow-overlap": false, "text-optional": true, "text-padding": 4,
+    "symbol-sort-key": ["-", 100, ["get", "score"]] },
+    paint: { "text-color": "#f4f8fb", "text-halo-color": "#0b1526", "text-halo-width": 1.3 } });
   m.addLayer({ id: "spot-callout", type: "symbol", source: "spots", filter: ["has", "callout"], layout: {
-    "text-field": ["get", "callout"], "text-size": 11, "text-offset": [0, -2.2], "text-anchor": "bottom", "text-font": ["Noto Sans Bold"],
-    "text-max-width": 14, "text-allow-overlap": false, "text-optional": true, "text-padding": 6, "symbol-sort-key": ["-", 100, ["get", "score"]] },
-    paint: { "text-color": "#e2fff0", "text-halo-color": "#064e3b", "text-halo-width": 2 } });
+    "text-field": ["get", "callout"], "text-size": 11, "text-offset": [0, -3.2], "text-anchor": "bottom", "text-font": ["Noto Sans Bold"],
+    "text-max-width": 16, "text-allow-overlap": false, "text-optional": true, "text-padding": 10, "symbol-sort-key": ["-", 0, ["get", "score"]] },
+    paint: { "text-color": "#d6fff0", "text-halo-color": "#0b1526", "text-halo-width": 2 } });
 }
 
 export default function SurfMap({ markers, buoys, selectedId, onSelect, ww3, hrrr, layers, basemap }: Props) {
@@ -123,7 +125,7 @@ export default function SurfMap({ markers, buoys, selectedId, onSelect, ww3, hrr
     };
     apply();
     // hotspot rings: strength by band (green pulses hardest, grey barely)
-    particles.current?.setRings(layers.rings ? markers.map((k) => ({ lon: k.lon, lat: k.lat, color: COLORS[k.color], strength: k.color === "green" ? 1 : k.color === "yellow" ? 0.55 : 0.15 })) : []);
+    particles.current?.setRings(layers.rings ? markers.map((k) => ({ lon: k.lon, lat: k.lat, color: COLORS[k.color], strength: k.color === "green" ? 1 : k.color === "yellow" ? 0.6 : 0 })) : []);
   }, [markers, selectedId, ready, layers.rings]);
 
   // buoys
@@ -144,9 +146,9 @@ export default function SurfMap({ markers, buoys, selectedId, onSelect, ww3, hrr
     const apply = () => {
       if (!m.isStyleLoaded() || !m.getLayer("overlay-anchor")) { m.once("render", apply); return; }
       const quality = ww3 ? swellQuality(ww3.step) : null;
-      setRaster(m, "swell-shade", layers.swellShade && ww3 && quality ? swellShadeDataUrl(ww3.index, ww3.step, quality) : null, 0.72, "overlay-anchor");
+      setRaster(m, "swell-shade", layers.swellShade && ww3 && quality ? swellShadeDataUrl(ww3.index, ww3.step, quality) : null, 0.62, "overlay-anchor");
       const windSrc = hrrr ?? ww3;
-      setRaster(m, "wind-shade", layers.windShade && windSrc ? windShadeDataUrl(windSrc) : null, 0.92, "overlay-anchor");
+      setRaster(m, "wind-shade", layers.windShade && windSrc ? windShadeDataUrl(windSrc) : null, 0.8, "overlay-anchor");
       let heat: string | null = null;
       if (layers.windHeat && hrrr) {
         const { u10, v10 } = hrrr.step.fields; const mask = (hrrr.index as { paint_mask?: number[] }).paint_mask;
@@ -155,7 +157,7 @@ export default function SurfMap({ markers, buoys, selectedId, onSelect, ww3, hrr
         const ws = ww3.step.fields.wind_speed; heat = gridToDataUrl(ww3.index, (k) => (ws[k] == null ? null : ws[k]! * 1.944), windColor, 6);
       }
       setRaster(m, "wind-heat", heat, 0.5, "overlay-anchor");
-      particles.current?.setField(layers.streamlines && ww3 && quality ? { index: ww3.index, hs: ww3.step.fields.hs, dp: ww3.step.fields.dp, quality } : null);
+      particles.current?.setField(layers.streamlines && ww3 ? { index: ww3.index, step: ww3.step } : null);
     };
     apply();
   }, [ww3, hrrr, layers.swellShade, layers.windShade, layers.windHeat, layers.streamlines, ready]);

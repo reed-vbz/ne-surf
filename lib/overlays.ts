@@ -51,13 +51,15 @@ export function swellQuality(step: Ww3Step): Flat {
   return out;
 }
 
-// vivid, fixed-alpha palettes (readability over subtlety)
-export const SWELL_HEX = ["#ff6a00", "#ffc400", "#16c3b0", "#1f6dff", "#1230c8"];
-const SWELL_STOPS: Array<[number, RGBA]> = [[0, [255, 106, 0, 255]], [0.28, [255, 196, 0, 255]], [0.52, [22, 195, 176, 255]], [0.78, [31, 109, 255, 255]], [1, [18, 48, 200, 255]]];
+// one blue family for the ocean (the reference design): deep navy = low / messy, luminous cyan = clean, high energy
+export const SWELL_HEX = ["#071a3a", "#0c3d7a", "#1178b8", "#2fc4e8", "#b6f3ff"];
+const SWELL_STOPS: Array<[number, RGBA]> = [[0, [7, 26, 58, 255]], [0.3, [12, 61, 122, 255]], [0.55, [17, 120, 184, 255]], [0.8, [47, 196, 232, 255]], [1, [182, 243, 255, 255]]];
 export const swellQualityColor = (q: number): RGBA => ramp(SWELL_STOPS, q);
+/** What the ocean raster actually encodes: quality (clean vs messy) blended with energy (height). */
+export const swellValue = (q: number, hs: number) => 0.45 * q + 0.55 * Math.min(1, hs / 2.5);
 
-export const WIND_HEX = { offshore: "#1fe06b", cross: "#8b95a3", onshore: "#ff5a1f" };
-const WIND_STOPS: Array<[number, RGBA]> = [[-1, [255, 90, 31, 255]], [-0.25, [232, 120, 60, 255]], [0, [139, 149, 163, 255]], [0.25, [70, 200, 110, 255]], [1, [31, 224, 107, 255]]];
+export const WIND_HEX = { offshore: "#3ddc84", cross: "#b8c2cc", onshore: "#ff9a4d" };
+const WIND_STOPS: Array<[number, RGBA]> = [[-1, [255, 140, 60, 255]], [-0.3, [240, 180, 120, 255]], [0, [184, 194, 204, 255]], [0.3, [120, 220, 150, 255]], [1, [61, 220, 132, 255]]];
 
 /** Nearest-neighbour fill of null (land-masked) WW3 cells from wet neighbours, `passes` cells deep, so the field reaches the shoreline. */
 function extend(f: Flat, nlat: number, nlon: number, passes = 2): Flat {
@@ -97,6 +99,7 @@ function smooth(f: Flat, nlat: number, nlon: number): Flat {
 export function swellShadeDataUrl(index: GridIndex, step: Ww3Step, quality: Flat, scale = 12): string {
   const [nlat, nlon] = index.shape;
   const q = smooth(extend(quality, nlat, nlon, 3), nlat, nlon);
+  const hsx = smooth(extend(step.fields.hs, nlat, nlon, 3), nlat, nlon);
   const c = document.createElement("canvas"); c.width = nlon * scale; c.height = nlat * scale;
   const ctx = c.getContext("2d")!; const img = ctx.createImageData(c.width, c.height);
   const lat0 = index.lat[0], lat1 = index.lat[nlat - 1], lon0 = index.lon[0], lon1 = index.lon[nlon - 1];
@@ -118,8 +121,8 @@ export function swellShadeDataUrl(index: GridIndex, step: Ww3Step, quality: Flat
       const lon = lon0 + (lon1 - lon0) * ((x + 0.5) / c.width);
       if (isLand(lat, lon)) continue;
       const v = sample(q, fi, fj); if (v === null) continue;
-      const col = swellQualityColor(v);
-      const edge = Math.min(1, Math.min(x, c.width - 1 - x, y, c.height - 1 - y) / (2 * scale));
+      const col = swellQualityColor(swellValue(v, sample(hsx, fi, fj) ?? 1));
+      const edge = Math.min(1, Math.min(x, c.width - 1 - x, y, c.height - 1 - y) / (4 * scale));   // ~4 cells of fade at the box edge
       const p = (y * c.width + x) * 4;
       img.data[p] = col[0]; img.data[p + 1] = col[1]; img.data[p + 2] = col[2]; img.data[p + 3] = Math.round(255 * edge);
     }
@@ -160,5 +163,43 @@ export function windShadeDataUrl(wind: { index: GridIndex; step: HrrrStep } | { 
     img.data[p] = col[0]; img.data[p + 1] = col[1]; img.data[p + 2] = col[2]; img.data[p + 3] = Math.round(255 * strength * fade);
   }
   ctx.putImageData(img, 0, 0);
-  return c.toDataURL("image/png");
+  // soften: upscale 2x with smoothing and a light blur so the band glows instead of showing 1 km pixels
+  const out = document.createElement("canvas"); out.width = nlon * 2; out.height = nlat * 2;
+  const octx = out.getContext("2d")!; octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = "high";
+  octx.filter = "blur(1.6px)"; octx.drawImage(c, 0, 0, out.width, out.height);
+  return out.toDataURL("image/png");
+}
+
+/** Bilinear (u, v) unit-vector field of swell travel direction on the WW3 grid, extended to the shoreline. */
+export function swellVectorField(index: GridIndex, step: Ww3Step) {
+  const [nlat, nlon] = index.shape;
+  const u: Flat = new Array(nlat * nlon), v: Flat = new Array(nlat * nlon);
+  for (let k = 0; k < nlat * nlon; k++) {
+    const d = step.fields.dp[k];
+    if (d == null) { u[k] = null; v[k] = null; continue; }
+    const r = ((d + 180) * Math.PI) / 180; u[k] = Math.sin(r); v[k] = Math.cos(r);   // toward
+  }
+  const ue = extend(u, nlat, nlon, 2), ve = extend(v, nlat, nlon, 2), he = extend(step.fields.hs, nlat, nlon, 2);
+  const lat0 = index.lat[0], lat1 = index.lat[nlat - 1], lon0 = index.lon[0], lon1 = index.lon[nlon - 1];
+  const bil = (f: Flat, fi: number, fj: number): number | null => {
+    const i0 = Math.floor(fi), j0 = Math.floor(fj), ti = fi - i0, tj = fj - j0;
+    let acc = 0, ws = 0;
+    for (const [di, dj, w] of [[0, 0, (1 - ti) * (1 - tj)], [1, 0, ti * (1 - tj)], [0, 1, (1 - ti) * tj], [1, 1, ti * tj]] as const) {
+      const i = i0 + di, j = j0 + dj; if (i < 0 || j < 0 || i >= nlat || j >= nlon) continue;
+      const x = f[i * nlon + j]; if (x == null) continue; acc += x * w; ws += w;
+    }
+    return ws < 0.3 ? null : acc / ws;
+  };
+  return {
+    /** unit travel vector + height at (lat, lon), or null over land / outside */
+    at(lat: number, lon: number): { u: number; v: number; hs: number } | null {
+      if (lat < lat0 || lat > lat1 || lon < lon0 || lon > lon1 || isLand(lat, lon)) return null;
+      const fi = ((lat - lat0) / (lat1 - lat0)) * (nlat - 1), fj = ((lon - lon0) / (lon1 - lon0)) * (nlon - 1);
+      const uu = bil(ue, fi, fj), vv = bil(ve, fi, fj), hh = bil(he, fi, fj);
+      if (uu === null || vv === null) return null;
+      const n = Math.hypot(uu, vv) || 1;
+      return { u: uu / n, v: vv / n, hs: hh ?? 0.5 };
+    },
+    bounds: { lat0, lat1, lon0, lon1 },
+  };
 }

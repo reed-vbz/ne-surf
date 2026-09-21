@@ -12,7 +12,7 @@ import { SPOTS } from "@/lib/spots";
 import { hoursAgo, useForecastData } from "@/lib/useForecastData";
 
 const SurfMap = dynamic(() => import("@/components/map/SurfMap"), { ssr: false });
-const DOT = { grey: "bg-slate-400", yellow: "bg-yellow-400", green: "bg-emerald-500" };
+const DOT = { grey: "bg-slate-400", yellow: "bg-[#ffd23f]", green: "bg-[#3ddc84]" };
 const compass = (d: number) => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
 const fmtShort = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", timeZone: "America/New_York" });
 
@@ -66,80 +66,81 @@ export default function Page() {
     <div className="flex flex-col">
       {ranked.map(({ spot, now, best }) => (
         <button key={spot.id} onClick={() => { setSelected(spot.id); setListOpen(false); }}
-          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-slate-100 ${selected === spot.id ? "bg-slate-100" : ""}`}>
+          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/10 ${selected === spot.id ? "bg-white/10" : ""}`}>
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[now!.result.color]}`} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-slate-800">{spot.name}</span>
+            <span className="block truncate text-slate-100">{spot.name}</span>
             {best && best.result.score > now!.result.score + 10 && (
-              <span className="block truncate text-[10px] text-slate-400">best {fmtShort.format(new Date(best.valid_time))} · {best.result.score}</span>)}
+              <span className="block truncate text-[10px] text-slate-500">best {fmtShort.format(new Date(best.valid_time))} · {best.result.score}</span>)}
           </span>
-          <span className="text-slate-500">{BAND_LABEL[now!.result.band]}</span>
-          <span className="w-6 text-right font-semibold tabular-nums text-slate-900">{now!.result.score}</span>
+          <span className="text-slate-400">{BAND_LABEL[now!.result.band]}</span>
+          <span className="w-6 text-right font-semibold tabular-nums text-white">{now!.result.score}</span>
         </button>))}
     </div>
   );
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-slate-100">
+    <main className="relative h-dvh w-full overflow-hidden bg-[#071120]">
       <SurfMap markers={markers} buoys={buoys} selectedId={selected} onSelect={setSelected}
         ww3={ww3 && ww3Step ? { index: ww3.index, step: ww3Step } : null}
         hrrr={hrrr && hrrrStep ? { index: hrrr.index, step: hrrrStep } : null}
         layers={layers} basemap={basemap} />
 
-      <header className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100vw-1.5rem)] flex-col gap-2 md:left-4 md:top-4">
-        <div className="pointer-events-auto rounded-xl bg-white/90 px-3 py-2 shadow-lg backdrop-blur md:px-4">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-base font-bold text-slate-900">NE Surf</h1>
-            <Link href="/about" className="text-[11px] text-slate-500 hover:underline">how it works</Link>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {ww3 ? `GFS-Wave ${ww3.index.cycle.slice(0, 13)}Z` : data.loading ? "loading…" : "no data"}{hrrr ? ` · HRRR ${hrrr.index.cycle.slice(0, 13)}Z` : ww3 ? " · wind: GFS (coarse)" : ""}
-            {age !== null && <span className={age > 12 ? "text-amber-700" : ""}> · fetched {age < 1 ? "<1" : age.toFixed(0)} h ago{age > 12 ? " (stale)" : ""}</span>}
-          </p>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.swellShade} onChange={() => toggle("swellShade")} /> swell shading</label>
-            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.streamlines} onChange={() => toggle("streamlines")} /> streamlines</label>
-            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.windShade} onChange={() => toggle("windShade")} /> coast wind</label>
-            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.rings} onChange={() => toggle("rings")} /> hotspots</label>
-            <label className="flex items-center gap-1"><input type="checkbox" checked={layers.windHeat} onChange={() => toggle("windHeat")} /> wind heat</label>
-            <button onClick={() => setBasemap((b) => (b === "satellite" ? "light" : "satellite"))} className="rounded border border-slate-300 px-1.5 text-slate-700">{basemap === "satellite" ? "light map" : "satellite"}</button>
-            <button onClick={() => setListOpen((o) => !o)} className="ml-auto rounded bg-slate-900 px-2 py-0.5 text-white md:hidden">spots</button>
-          </div>
+      <header className="absolute inset-x-0 top-0 z-10 border-b border-white/10 bg-[#0b1526]/92 text-slate-100 shadow-xl backdrop-blur">
+        <div className="flex items-center gap-3 px-4 py-2">
+          <span className="grid h-6 w-6 place-items-center rounded bg-cyan-400 text-[11px] font-black text-[#0b1526]">↗</span>
+          <h1 className="text-sm font-bold uppercase tracking-[0.14em]">NE Surf Overview <span className="font-normal text-slate-400">(free map)</span></h1>
+          <span className="hidden text-[11px] text-slate-400 md:inline">
+            {ww3 ? `GFS-Wave ${ww3.index.cycle.slice(5, 13)}Z` : data.loading ? "loading…" : "no data"}{hrrr ? ` · HRRR ${hrrr.index.cycle.slice(5, 13)}Z` : ""}
+            {age !== null && <span className={age > 12 ? "text-amber-400" : ""}> · fetched {age < 1 ? "<1" : age.toFixed(0)} h ago{age > 12 ? " (stale)" : ""}</span>}
+          </span>
+          <Link href="/about" className="ml-auto text-[11px] uppercase tracking-wider text-slate-400 hover:text-white">how it works</Link>
         </div>
-        {data.error && <div className="pointer-events-auto max-w-sm rounded-xl bg-red-50 p-3 text-xs text-red-800 shadow">{data.error}</div>}
+        <div className="flex flex-wrap items-center gap-2 border-t border-white/5 px-4 py-1.5 text-[11px]">
+          {([["swellShade", "Swell field"], ["streamlines", "Streamlines"], ["windShade", "Wind overlay"], ["rings", "Hotspots"]] as Array<[keyof Layers, string]>).map(([k, label]) => (
+            <button key={k} onClick={() => toggle(k)}
+              className={`rounded-full border px-2.5 py-0.5 uppercase tracking-wider ${layers[k] ? "border-cyan-400/60 bg-cyan-400/15 text-cyan-200" : "border-white/15 text-slate-400"}`}>{label}</button>))}
+          <button onClick={() => setBasemap((b) => (b === "satellite" ? "light" : "satellite"))} className="rounded-full border border-white/15 px-2.5 py-0.5 uppercase tracking-wider text-slate-300">{basemap === "satellite" ? "Light map" : "Satellite"}</button>
+          <button onClick={() => setListOpen((o) => !o)} className="ml-auto rounded-full bg-cyan-400 px-3 py-0.5 font-semibold uppercase tracking-wider text-[#0b1526] md:hidden">Spots</button>
+        </div>
+        {data.error && <div className="mx-4 mb-2 rounded-lg bg-red-500/20 p-2 text-xs text-red-200">{data.error}</div>}
       </header>
 
       {/* ranked list: side card on desktop, sheet on mobile */}
-      <div className="absolute right-4 top-4 z-10 hidden max-h-[45vh] w-64 overflow-y-auto rounded-xl bg-white/90 p-2 shadow-lg backdrop-blur md:block">{list}</div>
+      <div className="absolute right-4 top-24 z-10 hidden max-h-[42vh] w-64 overflow-y-auto rounded-xl border border-white/10 bg-[#0b1526]/90 p-2 text-slate-100 shadow-2xl backdrop-blur md:block">
+        <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Ranked now</div>{list}</div>
       {listOpen && (
-        <div className="absolute inset-x-2 bottom-24 top-24 z-20 overflow-y-auto rounded-xl bg-white/95 p-2 shadow-xl backdrop-blur md:hidden">
-          <div className="flex items-center justify-between px-2 pb-1 text-xs text-slate-500"><span>Ranked now</span><button onClick={() => setListOpen(false)}>close</button></div>
+        <div className="absolute inset-x-2 bottom-28 top-28 z-20 overflow-y-auto rounded-xl border border-white/10 bg-[#0b1526]/95 p-2 text-slate-100 shadow-2xl backdrop-blur md:hidden">
+          <div className="flex items-center justify-between px-2 pb-1 text-[10px] uppercase tracking-[0.18em] text-slate-400"><span>Ranked now</span><button onClick={() => setListOpen(false)}>close</button></div>
           {list}
         </div>
       )}
 
       {sel && sel.now && (
-        <div className="absolute inset-x-2 bottom-24 top-auto z-10 max-h-[58vh] md:inset-x-auto md:left-4 md:top-28 md:max-h-none md:w-80">
+        <div className="absolute inset-x-2 bottom-28 top-auto z-10 max-h-[55vh] md:inset-x-auto md:bottom-[16.5rem] md:left-4 md:top-24 md:max-h-none md:w-80">
           <SpotPanel spot={sel.spot} result={sel.now.result} cond={sel.now.cond} onClose={() => setSelected(null)}
             buoys={sel.spot.buoys.map((id) => [id, data.ndbc?.buoys[id]])} bathy={data.bathy.spots[sel.spot.id] ?? null} />
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-24 left-4 z-10 hidden w-56 flex-col gap-2 md:flex">
-        <div className="rounded-lg bg-slate-900/85 px-3 py-2 text-[10px] text-slate-200 shadow backdrop-blur">
-          <div className="font-semibold uppercase tracking-wide text-white">Swell interaction</div>
-          <div className="mt-1 h-2 rounded" style={{ background: "linear-gradient(90deg,#ff6a00,#ffc400,#16c3b0,#1f6dff,#1230c8)" }} />
-          <div className="flex justify-between"><span>messy windswell</span><span>clean groundswell</span></div>
+      <div className="pointer-events-none absolute bottom-24 left-4 z-10 hidden w-60 flex-col gap-2 md:flex">
+        <div className="rounded-lg border border-white/10 bg-[#0b1526]/90 px-3 py-2 text-[10px] text-slate-300 shadow-xl backdrop-blur">
+          <div className="font-semibold uppercase tracking-[0.16em] text-white">Swell interaction</div>
+          <div className="text-slate-500">deep-water swell field · streamlines follow the swell</div>
+          <div className="mt-1.5 h-2 rounded" style={{ background: "linear-gradient(90deg,#071a3a,#0c3d7a,#1178b8,#2fc4e8,#b6f3ff)" }} />
+          <div className="flex justify-between uppercase tracking-wider"><span>low</span><span>clean</span><span>high</span></div>
         </div>
-        <div className="rounded-lg bg-slate-900/85 px-3 py-2 text-[10px] text-slate-200 shadow backdrop-blur">
-          <div className="font-semibold uppercase tracking-wide text-white">Wind overlay (coast)</div>
-          <div className="mt-1 h-2 rounded" style={{ background: "linear-gradient(90deg,#1fe06b,#8b95a3,#ff5a1f)" }} />
-          <div className="flex justify-between"><span>offshore</span><span>cross</span><span>onshore</span></div>
+        <div className="rounded-lg border border-white/10 bg-[#0b1526]/90 px-3 py-2 text-[10px] text-slate-300 shadow-xl backdrop-blur">
+          <div className="font-semibold uppercase tracking-[0.16em] text-white">Wind overlay</div>
+          <div className="text-slate-500">HRRR wind on the coast band</div>
+          <div className="mt-1.5 h-2 rounded" style={{ background: "linear-gradient(90deg,#3ddc84,#b8c2cc,#ff9a4d)" }} />
+          <div className="flex justify-between uppercase tracking-wider"><span>offshore</span><span>cross-shore</span><span>onshore</span></div>
         </div>
       </div>
       {ranked[0] && (
-        <div className="pointer-events-none absolute bottom-24 right-3 z-10 hidden w-60 rounded-lg bg-slate-900/85 px-3 py-2 text-[11px] text-slate-200 shadow backdrop-blur md:block">
-          <div className="font-semibold uppercase tracking-wide text-white">Surf quality hotspot</div>
+        <div className="pointer-events-none absolute bottom-24 right-3 z-10 hidden w-60 rounded-lg border border-white/10 bg-[#0b1526]/90 px-3 py-2 text-[11px] text-slate-300 shadow-xl backdrop-blur md:block">
+          <div className="font-semibold uppercase tracking-[0.16em] text-white">Surf quality hotspot</div>
+          <div className="text-[10px] text-slate-500">best scoring break at this hour</div>
           <div className="mt-1 flex items-center gap-2">
             <span className={`h-2.5 w-2.5 rounded-full ${DOT[ranked[0].now!.result.color]}`} />
             <span className="font-semibold text-white">{BAND_LABEL[ranked[0].now!.result.band]}</span>

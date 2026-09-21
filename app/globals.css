@@ -11,3 +11,12 @@ body { background: var(--background); color: var(--foreground); font-family: ui-
 .doc ul, .doc ol { padding-left: 1.25rem; margin: .5rem 0; }
 .doc ul { list-style: disc; } .doc ol { list-style: decimal; }
 .doc code { font-size: .85em; background: #f1f5f9; padding: 0 .3em; border-radius: 3px; }
+
+/* timeline slider knob */
+.timeline-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 9999px; background: #fff; border: 3px solid #22d3ee; box-shadow: 0 0 10px rgba(34,211,238,.6); }
+.timeline-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 9999px; background: #fff; border: 3px solid #22d3ee; }
+.timeline-range::-webkit-slider-runnable-track { background: transparent; }
+.timeline-range::-moz-range-track { background: transparent; }
+.maplibregl-ctrl-group { background: #0b1526 !important; border: 1px solid rgba(255,255,255,.12); }
+.maplibregl-ctrl-group button + button { border-top: 1px solid rgba(255,255,255,.12) !important; }
+.maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(1); }
