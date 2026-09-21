@@ -6,7 +6,7 @@ import OverviewScreen, { type ScreenModel } from "@/components/screen/OverviewSc
 import type { BuoyMarker, Layers, Mode, SpotMarker } from "@/components/map/SurfMap";
 import { atTime, loadHrrrStep, loadWw3Step, type HrrrStep, type Ww3Step } from "@/lib/cache";
 import { byDay, dayKeyOf, forecastFor, representativePoint, type ForecastPoint } from "@/lib/forecast";
-import { BAND_HEX, BAND_WORD, bandFor } from "@/lib/overlays";
+import { TIER, tierFor } from "@/lib/colors";
 import { assessWind } from "@/lib/quality";
 import { SPOTS } from "@/lib/spots";
 import { useForecastData } from "@/lib/useForecastData";
@@ -32,7 +32,7 @@ function PageInner() {
   const refMode = useSearchParams().get("ref") === "1";   // pixel-diff hook: reference chrome content over the live map
   const [dayIdx, setDayIdx] = useState(0);
   const [mode, setMode] = useState<Mode>("forecast");
-  const [layers, setLayers] = useState<Layers>({ satellite: true, zones: true, streamlines: true, rings: true, labels: true, windBand: false });
+  const [layers, setLayers] = useState<Layers>({ satellite: true, energy: true, streamlines: true, crests: true, ribbon: true, labels: true });
   const [layersOpen, setLayersOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -63,15 +63,17 @@ function PageInner() {
   const wind = data.hrrr && hrrrStep ? { index: data.hrrr.index, step: hrrrStep } : data.ww3 && ww3Step ? { index: data.ww3.index, step: ww3Step } : null;
 
   const spots: SpotMarker[] = daily.map(({ spot, best }) => {
-    const b = best!; const band = bandFor(b.result.score); const body = calloutFor(b);
-    return { id: spot.id, name: spot.name, state: spot.state, lat: spot.location.lat, lon: spot.location.lon, band, score: b.result.score, featured: FEATURED.has(spot.id),
-      callout: body && (top2.has(spot.id) || selected === spot.id) ? { name: shortName(spot.name), body } : undefined, ringRadius: 9 + Math.min(30, b.result.face_m * 8) };
+    const b = best!; const tier = tierFor(b.result.score); const body = calloutFor(b); const d = b.result.dominant;
+    return { id: spot.id, name: spot.name, state: spot.state, lat: spot.location.lat, lon: spot.location.lon, tier, score: b.result.score, featured: FEATURED.has(spot.id),
+      callout: body && (top2.has(spot.id) || selected === spot.id) ? { name: shortName(spot.name), body } : undefined,
+      swell: d ? { dp: d.dp, tp: d.tp, hs_m: b.result.usable_hs_m } : null };
   });
   const buoys: BuoyMarker[] = (data.ww3?.spots.buoys ?? []).map((b) => { const o = data.ndbc?.buoys[b.id]; const ok = !!o && o.status === "ok" && o.wvht_m != null;
     return { id: b.id, lat: b.position.lat, lon: b.position.lon, ok, label: ok ? `${b.id} · ${(o!.wvht_m! * 3.28).toFixed(1)}ft @ ${o!.dpd_s ?? "–"}s` : `${b.id} · offline` }; });
 
   const hot = ranked[0] ?? null;
-  const hotBand = hot ? bandFor(hot.best!.result.score) : "poor";
+  const hotTier = hot ? tierFor(hot.best!.result.score) : "poor";
+  const TIER_WORD = { green: "Excellent", moderate: "Moderate", poor: "Poor" } as const;
   const hotWind = hot?.best?.cond.wind ? assessWind(hot.spot, hot.best.cond.wind) : null;
   const windWord = !hotWind ? "" : hotWind.label === "offshore" || hotWind.label === "glassy" ? "Optimal" : hotWind.label === "onshore" || hotWind.label === "cross-on" ? "Onshore" : "Cross-shore";
   const go = (id: string) => { const s = SPOTS.find((x) => x.id === id); if (!s) return; setSelected(id); setQuery(""); setFlyTo({ lon: s.location.lon, lat: s.location.lat, key: ++flyKey.current }); };
@@ -84,7 +86,7 @@ function PageInner() {
     layerCard: mode === "refraction" ? { title: "Refraction Map", body: "CRM bathymetry, shallow → deep" } : mode === "buoys" ? { title: "Live Buoy Feed", body: "NDBC observations, updated live" } : { title: "Swell Interaction", body: "Deep-water refraction, color-coded" },
     callouts: [],   // callouts are anchored to pins by the map layer (build-spec §05 layer 5)
     hotspot: hot && hot.best
-      ? { rating: BAND_WORD[hotBand].charAt(0) + BAND_WORD[hotBand].slice(1).toLowerCase(), ratingColor: BAND_HEX[hotBand], pinColor: BAND_HEX[hotBand],
+      ? { rating: TIER_WORD[hotTier], ratingColor: TIER[hotTier], pinColor: TIER[hotTier],
           line1: `${shortName(hot.spot.name).charAt(0) + shortName(hot.spot.name).slice(1).toLowerCase()}: ${Math.max(1, Math.round(hot.best.result.face_ft))}-${Math.round(hot.best.result.face_ft * 1.3)}ft${hot.best.result.dominant ? ` @ ${hot.best.result.dominant.tp.toFixed(0)}s` : ""}`,
           line2: hot.best.cond.wind ? `${compass(hot.best.cond.wind.dir_from_deg)} wind · ${windWord}` : "" }
       : { rating: "—", ratingColor: "#9c9ea1", pinColor: "#9c9ea1", line1: data.error ?? "Loading forecast", line2: "" },
@@ -97,7 +99,7 @@ function PageInner() {
       <OverviewScreen m={refMode ? REFERENCE_MODEL : model}
         h={{ onPrev: () => setDayIdx((i) => Math.max(0, i - 1)), onNext: () => setDayIdx((i) => Math.min(days.length - 1, i + 1)), onPickDay: setDayIdx,
              onMode: setMode, onSearch: setQuery, onLayers: () => setLayersOpen((o) => !o), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
-        map={<SurfMap spots={spots} buoys={buoys} selectedId={selected} onSelect={setSelected} mode={mode} layers={layers} wind={wind} flyTo={flyTo} />}>
+        map={<SurfMap spots={spots} buoys={buoys} selectedId={selected} onSelect={setSelected} mode={mode} layers={layers} wind={wind} swell={data.ww3 && ww3Step ? { index: data.ww3.index, step: ww3Step } : null} flyTo={flyTo} />}>
         {/* progress line under the toolbar while data or a day's grids load (build-spec §06 Empty / loading) */}
         {(data.loading || stepLoading) && <div style={{ position: "absolute", left: 0, top: 128, height: 2, width: "100%", background: "#4798b7", zIndex: 7, transformOrigin: "left", animation: "nesurf-progress 1.2s ease-in-out infinite" }} />}
         {/* search type-ahead (§06 Search) */}
@@ -112,7 +114,7 @@ function PageInner() {
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "#e8eef2" }}>Layers</span>
               <button onClick={() => setLayersOpen(false)} style={{ minHeight: 44, minWidth: 44, background: "transparent", border: 0, color: "#b8c7d1", fontSize: 10, fontWeight: 600, letterSpacing: "0.03em", textTransform: "uppercase", cursor: "pointer" }}>Done</button>
             </div>
-            {([["satellite", "Satellite"], ["zones", "Swell zones"], ["streamlines", "Wind streamlines"], ["rings", "Rings"], ["labels", "Labels"], ["windBand", "Coastal wind band"]] as Array<[keyof Layers, string]>).map(([k, label]) => (
+            {([["satellite", "Satellite"], ["energy", "Swell energy"], ["streamlines", "Wind streamlines"], ["crests", "Refraction crests"], ["ribbon", "Coastal wind ribbon"], ["labels", "Labels"]] as Array<[keyof Layers, string]>).map(([k, label]) => (
               <label key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 44, borderTop: "1px solid rgba(255,255,255,0.10)", fontSize: 11, fontWeight: 600, letterSpacing: "0.03em", textTransform: "uppercase", color: "#e8eef2" }}>
                 <span>{label}</span><input type="checkbox" checked={layers[k]} onChange={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ width: 20, height: 20, accentColor: "#4798b7" }} />
               </label>))}

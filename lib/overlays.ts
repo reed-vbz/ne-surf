@@ -10,6 +10,7 @@ import type { Flat, GridIndex, HrrrStep, Ww3Step } from "./cache";
 import coastJson from "@/data/coast.json";
 import bathyJson from "@/data/bathy-grid.json";
 import { cellIndex } from "./grid";
+import { swellColor } from "./colors";
 
 export interface Coast { res: number; lat0: number; lon0: number; nlat: number; nlon: number; band: number; cells: number[][]; land_mask_b64: string }
 export const COAST = coastJson as Coast;
@@ -173,4 +174,72 @@ export function windShadeDataUrl(src: { index: GridIndex; step: HrrrStep } | { i
   const o = document.createElement("canvas"); o.width = nlon * 2; o.height = nlat * 2;
   const octx = o.getContext("2d")!; octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = "high"; octx.filter = "blur(1.6px)"; octx.drawImage(c, 0, 0, o.width, o.height);
   return o.toDataURL("image/png");
+}
+
+
+/**
+ * Swell-energy canvas (Step 2): WW3 significant height + peak period → navy / cyan / violet / magenta.
+ * Bilinear over the 1/6° grid, extended to the shoreline; the 1 km mask is only a coarse pre-cut here —
+ * the high-resolution land fill layer above does the real clipping.
+ */
+export function swellEnergyDataUrl(index: GridIndex, step: Ww3Step, scale = 12): string {
+  const [nlat, nlon] = index.shape;
+  const ext = (f: Flat) => { let cur = f.slice(); for (let p = 0; p < 3; p++) { const next = cur.slice();
+    for (let i = 0; i < nlat; i++) for (let j = 0; j < nlon; j++) { const k = i * nlon + j; if (cur[k] != null) continue; let acc = 0, n = 0;
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nlat || jj >= nlon) continue; const v = cur[ii * nlon + jj]; if (v != null) { acc += v; n++; } }
+      if (n) next[k] = acc / n; } cur = next; } return cur; };
+  const hs = ext(step.fields.hs), tp = ext(step.fields.tp);
+  const c = document.createElement("canvas"); c.width = nlon * scale; c.height = nlat * scale;
+  const ctx = c.getContext("2d")!; const img = ctx.createImageData(c.width, c.height);
+  const lat0 = index.lat[0], lat1 = index.lat[nlat - 1], lon0 = index.lon[0], lon1 = index.lon[nlon - 1];
+  const bil = (f: Flat, fi: number, fj: number): number | null => {
+    const i0 = Math.floor(fi), j0 = Math.floor(fj), ti = fi - i0, tj = fj - j0; let acc = 0, ws = 0;
+    for (const [di, dj, w] of [[0, 0, (1 - ti) * (1 - tj)], [1, 0, ti * (1 - tj)], [0, 1, (1 - ti) * tj], [1, 1, ti * tj]] as const) {
+      const i = i0 + di, j = j0 + dj; if (i < 0 || j < 0 || i >= nlat || j >= nlon) continue; const v = f[i * nlon + j]; if (v == null) continue; acc += v * w; ws += w; }
+    return ws < 0.2 ? null : acc / ws;
+  };
+  for (let y = 0; y < c.height; y++) {
+    const fi = (c.height - 1 - y + 0.5) / scale - 0.5, lat = lat0 + (lat1 - lat0) * ((c.height - 1 - y + 0.5) / c.height);
+    for (let x = 0; x < c.width; x++) {
+      const fj = (x + 0.5) / scale - 0.5, lon = lon0 + (lon1 - lon0) * ((x + 0.5) / c.width);
+      if (isLand(lat, lon)) continue;
+      const h = bil(hs, fi, fj), t = bil(tp, fi, fj); if (h === null || t === null) continue;
+      const col = swellColor(h * 3.28084, t);
+      const edge = Math.min(1, Math.min(x, c.width - 1 - x, y, c.height - 1 - y) / (4 * scale));
+      const p = (y * c.width + x) * 4; img.data[p] = col[0]; img.data[p + 1] = col[1]; img.data[p + 2] = col[2]; img.data[p + 3] = Math.round(255 * edge);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c.toDataURL("image/png");
+}
+
+
+/** Bilinear scalar sampler over a flat WW3/HRRR grid, extended 3 cells past the land mask so fields reach the shore. */
+export function bilinearField(index: GridIndex, f: Flat): (lat: number, lon: number) => number | null {
+  const [nlat, nlon] = index.shape;
+  let cur = f.slice();
+  for (let p = 0; p < 3; p++) { const next = cur.slice();
+    for (let i = 0; i < nlat; i++) for (let j = 0; j < nlon; j++) { const k = i * nlon + j; if (cur[k] != null) continue; let acc = 0, n = 0;
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nlat || jj >= nlon) continue; const v = cur[ii * nlon + jj]; if (v != null) { acc += v; n++; } }
+      if (n) next[k] = acc / n; } cur = next; }
+  const lat0 = index.lat[0], lat1 = index.lat[nlat - 1], lon0 = index.lon[0], lon1 = index.lon[nlon - 1];
+  return (lat, lon) => {
+    if (lat < lat0 || lat > lat1 || lon < lon0 || lon > lon1) return null;
+    const fi = ((lat - lat0) / (lat1 - lat0)) * (nlat - 1), fj = ((lon - lon0) / (lon1 - lon0)) * (nlon - 1);
+    const i0 = Math.floor(fi), j0 = Math.floor(fj), ti = fi - i0, tj = fj - j0; let acc = 0, ws = 0;
+    for (const [di, dj, w] of [[0, 0, (1 - ti) * (1 - tj)], [1, 0, ti * (1 - tj)], [0, 1, (1 - ti) * tj], [1, 1, ti * tj]] as const) {
+      const i = i0 + di, j = j0 + dj; if (i < 0 || j < 0 || i >= nlat || j >= nlon) continue; const v = cur[i * nlon + j]; if (v == null) continue; acc += v * w; ws += w; }
+    return ws < 0.2 ? null : acc / ws;
+  };
+}
+
+
+/** Depth (m, positive down) from the coarse CRM grid for the refraction-map canvas; null over land / no data. */
+let bathyBytes: Uint8Array | null = null;
+export function depthAt(lat: number, lon: number): number | null {
+  if (!bathyBytes) bathyBytes = b64(BATHY.data_b64);
+  const i = Math.round((lat - BATHY.lat0) / BATHY.res), j = Math.round((lon - BATHY.lon0) / BATHY.res);
+  if (i < 0 || j < 0 || i >= BATHY.nlat || j >= BATHY.nlon) return null;
+  const v = bathyBytes[i * BATHY.nlon + j]; if (!v) return null;
+  return Math.expm1(((v - 1) / 254) * Math.log1p(300));
 }
