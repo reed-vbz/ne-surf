@@ -1,5 +1,7 @@
 # ne-surf — New England surf forecast (open source)
 
+**Live:** https://ne-surf.vercel.app · **Source:** https://github.com/reed-vbz/ne-surf
+
 Free, open-source regional surf forecast for RI · MA · NH · ME.
 Bounding box: **40.0°N–45.0°N, 72.5°W–66.0°W**.
 
@@ -64,9 +66,18 @@ Design rule: **Python writes small static JSON; Next.js only reads it.** No data
 server-side model parsing at request time, so the whole thing hosts free on Vercel/Netlify
 and the workers run free on GitHub Actions.
 
+## How it is hosted
+
+- **Site**: Vercel, auto-deploys from `main` (Next.js static build; every route is prerendered).
+- **Data**: GitHub Actions cron (`.github/workflows/ingest.yml`, 4×/day after each GFS-Wave cycle) runs the workers and
+  force-pushes `public/cache` to the orphan **`data`** branch as a single commit, so `main` never grows.
+  The site reads the cache from `raw.githubusercontent.com/reed-vbz/ne-surf/data/public/cache` via
+  `NEXT_PUBLIC_CACHE_BASE` (see `.env.example`). Locally, without that variable, it reads `public/cache` written by `npm run ingest`.
+- `public/cache/` is git-ignored on `main` for that reason.
+
 ## Run it
 
-No GitHub needed: `ops/ingest.sh` runs the whole pipeline locally and `ops/com.nesurf.ingest.plist` schedules it 4×/day with launchd (install notes inside the file).
+Alternative to GitHub Actions: `ops/ingest.sh` runs the pipeline locally and `ops/com.nesurf.ingest.plist` schedules it with launchd.
 
 ```sh
 npm install            # also copies the MapLibre worker into public/vendor/maplibre (postinstall)
