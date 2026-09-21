@@ -1,0 +1,7 @@
+/* Map-layer styling only (build-spec §05 layer 0). Chrome lives in components/screen/OverviewScreen.tsx. */
+.nesurf-map .maplibregl-ctrl-attrib { font-size: 9px; line-height: 12px; background: rgba(14,32,41,.72) !important; color: #9fb1bc; border-radius: 4px 0 0 0; padding: 1px 4px; }
+.nesurf-map .maplibregl-ctrl-attrib a { color: #b8c7d1; text-decoration: none; }
+.nesurf-map .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 0; }
+.nesurf-map .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) { background: rgba(14,32,41,.72) !important; }
+.nesurf-map .maplibregl-ctrl-attrib-button { filter: invert(1) opacity(.7); }
+.nesurf-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }

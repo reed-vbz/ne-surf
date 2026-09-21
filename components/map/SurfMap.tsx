@@ -1,6 +1,7 @@
 "use client";
 import { Map as MLMap, Marker, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./map.css";
 import { useEffect, useRef, useState } from "react";
 import type { GridIndex, HrrrStep, Ww3Step } from "@/lib/cache";
 import { BBOX } from "@/lib/grid";
@@ -131,8 +132,10 @@ export default function SurfMap({ spots, buoys, selectedId, onSelect, mode, laye
       if (!e) {
         const root = document.createElement("div"); root.className = "relative"; root.style.cursor = "pointer";
         const pin = document.createElement("div"); pin.className = "absolute -translate-x-1/2 -translate-y-full";
-        const label = document.createElement("div"); label.className = "plate t-label absolute whitespace-nowrap"; label.style.left = "12px"; label.style.top = "-22px";
-        const callout = document.createElement("div"); callout.className = "panel absolute whitespace-nowrap px-2 hidden"; callout.style.left = "12px"; callout.style.top = "12px"; callout.style.height = "24px"; callout.style.lineHeight = "24px"; callout.style.fontSize = "11px"; callout.style.boxShadow = "0 3px 10px rgba(0,0,0,.4)";
+        const label = document.createElement("div"); label.className = "absolute whitespace-nowrap";
+        Object.assign(label.style, { left: "12px", top: "-22px", padding: "3px 6px", borderRadius: "4px", background: "rgba(14,33,42,0.72)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.04em", textTransform: "uppercase", color: "#ffffff", lineHeight: "normal", fontFamily: "'Barlow', system-ui, sans-serif" });
+        const callout = document.createElement("div"); callout.className = "absolute whitespace-nowrap hidden";
+        Object.assign(callout.style, { left: "12px", top: "12px", height: "24px", padding: "0px 8px", borderRadius: "4px", background: "#0e212a", boxShadow: "0px 3px 10px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: "500", color: "#ffffff", lineHeight: "normal", fontFamily: "'Barlow', system-ui, sans-serif" });
         root.append(pin, label, callout);
         root.addEventListener("click", (ev) => { ev.stopPropagation(); onSelectRef.current(s.id); });
         const marker = new Marker({ element: root, anchor: "bottom" }).setLngLat([s.lon, s.lat]).addTo(m);
@@ -143,17 +146,19 @@ export default function SurfMap({ spots, buoys, selectedId, onSelect, mode, laye
       e.pin.style.marginTop = s.featured ? "0" : "0";
       e.label.textContent = s.name;
       e.label.style.display = layers.labels ? "" : "none";
-      e.label.style.top = s.featured ? "-26px" : "-20px";
+      e.label.style.top = s.featured ? "-27px" : "-21px";
       const showCallout = s.id === selectedId || (!selectedId && !!s.callout);
       if (showCallout && s.callout) {
-        e.callout.innerHTML = `<span style="color:${BAND_HEX[s.band]};font-weight:700">${s.callout.name}:</span> <span style="font-weight:500;color:#E8EEF2">${s.callout.body}</span>`;
-        e.callout.classList.remove("hidden");
-      } else e.callout.classList.add("hidden");
+        e.callout.innerHTML = `<span style="font-weight:700;color:${BAND_HEX[s.band]};letter-spacing:0.02em">${s.callout.name}:</span><span>${s.callout.body}</span>`;
+        e.callout.classList.remove("hidden"); e.callout.style.display = "flex";
+      } else { e.callout.classList.add("hidden"); e.callout.style.display = "none"; }
       e.marker.getElement().style.zIndex = s.id === selectedId ? "30" : s.featured ? "20" : "10";
       e.marker.setLngLat([s.lon, s.lat]);
     }
     for (const [id, e] of entries.current) if (!seen.has(id)) { e.marker.remove(); entries.current.delete(id); }
     collide();
+    const raf = requestAnimationFrame(() => requestAnimationFrame(collide));   // again once fonts/layout have settled
+    return () => cancelAnimationFrame(raf);
   }, [spots, selectedId, layers.labels, ready]);
 
   // buoy markers (live buoy feed mode)
@@ -163,7 +168,7 @@ export default function SurfMap({ spots, buoys, selectedId, onSelect, mode, laye
     if (mode !== "buoys") return;
     for (const b of buoys) {
       const root = document.createElement("div"); root.className = "flex items-center gap-1.5";
-      root.innerHTML = `<span style="width:10px;height:10px;border-radius:9999px;background:${b.ok ? "#E8EEF2" : "#9C9EA1"};border:2px solid #0E2029;box-shadow:0 0 0 2px ${b.ok ? "#64D5CC" : "transparent"}"></span><span class="plate t-label">${b.label}</span>`;
+      root.innerHTML = `<span style="width:10px;height:10px;border-radius:9999px;background:${b.ok ? "#E8EEF2" : "#9C9EA1"};border:2px solid #0E2029;box-shadow:0 0 0 2px ${b.ok ? "#64D5CC" : "transparent"}"></span><span style="padding:3px 6px;border-radius:4px;background:rgba(14,33,42,0.72);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#fff;line-height:normal;font-family:'Barlow',system-ui,sans-serif">${b.label}</span>`;
       buoyMarkers.current.push(new Marker({ element: root, anchor: "left" }).setLngLat([b.lon, b.lat]).addTo(m));
     }
   }, [buoys, mode, ready]);
@@ -171,5 +176,5 @@ export default function SurfMap({ spots, buoys, selectedId, onSelect, mode, laye
   // fly to a spot (search / hotspot card)
   useEffect(() => { const m = map.current; if (!m || !flyTo) return; m.flyTo({ center: [flyTo.lon, flyTo.lat], zoom: Math.max(m.getZoom(), 9), duration: 900 }); }, [flyTo]);
 
-  return <div className="absolute inset-0"><div ref={el} className="h-full w-full" /></div>;
+  return <div className="nesurf-map absolute inset-0" style={{ zIndex: 0, isolation: "isolate" }}><div ref={el} className="h-full w-full" /></div>;
 }

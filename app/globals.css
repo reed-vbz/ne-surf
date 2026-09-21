@@ -19,3 +19,6 @@ button{font-family:inherit}
 .doc ul, .doc ol { padding-left: 1.25rem; margin: .5rem 0; }
 .doc ul { list-style: disc; } .doc ol { list-style: decimal; }
 .doc code { font-size: .85em; background: rgba(255,255,255,.08); padding: 0 .3em; border-radius: 3px; }
+
+/* Phase B: loading line under the toolbar (build-spec §06) */
+@keyframes nesurf-progress { 0% { transform: scaleX(0) } 50% { transform: scaleX(.7) } 100% { transform: scaleX(1); opacity: 0 } }
