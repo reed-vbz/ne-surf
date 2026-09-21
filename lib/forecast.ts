@@ -41,3 +41,12 @@ export function byDay(points: ForecastPoint[]): Array<{ day: string; points: For
   }
   return [...groups.entries()].map(([day, pts]) => ({ day, points: pts, best: bestWindow(pts)! }));
 }
+
+/** The step used to draw the map layers for a day: the one nearest 12:00 New York time (today: nearest to now). */
+export function representativePoint(points: ForecastPoint[], day: string, todayKey: string): ForecastPoint | null {
+  const pts = points.filter((p) => dayKey.format(new Date(p.valid_time)) === day);
+  if (!pts.length) return null;
+  const target = day === todayKey ? Date.now() : Date.parse(`${day}T16:00:00Z`);   // 16Z ≈ noon EDT
+  return pts.reduce((b, p) => (Math.abs(Date.parse(p.valid_time) - target) < Math.abs(Date.parse(b.valid_time) - target) ? p : b), pts[0]);
+}
+export const dayKeyOf = (iso: string | number) => dayKey.format(new Date(iso));

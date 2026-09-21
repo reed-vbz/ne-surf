@@ -1,167 +1,175 @@
 "use client";
-import { Map as MLMap, NavigationControl, setWorkerUrl, type GeoJSONSource, type MapLayerMouseEvent, type StyleSpecification } from "maplibre-gl";
+import { Map as MLMap, Marker, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import type { GridIndex, Ww3Step, HrrrStep } from "@/lib/cache";
-import { BBOX, gridToDataUrl, windColor } from "@/lib/grid";
-import { swellQuality, swellShadeDataUrl, windShadeDataUrl } from "@/lib/overlays";
-import { SwellParticles } from "./SwellParticles";
+import type { GridIndex, HrrrStep, Ww3Step } from "@/lib/cache";
+import { BBOX } from "@/lib/grid";
+import { BAND_HEX, bathyDataUrl, oceanTintDataUrl, windShadeDataUrl, windVectorField, zonesDataUrl, type Band } from "@/lib/overlays";
+import { FlowCanvas, type Ring } from "./FlowCanvas";
 
-export interface MarkerDatum { id: string; name: string; lat: number; lon: number; score: number; color: "grey" | "yellow" | "green"; face_ft: number; callout?: string }
-export interface BuoyDatum { id: string; lat: number; lon: number; label: string; ok: boolean }
-export interface Layers { swellShade: boolean; streamlines: boolean; windShade: boolean; windHeat: boolean; rings: boolean }
+export interface SpotMarker { id: string; name: string; state: string; lat: number; lon: number; band: Band; score: number; featured: boolean; callout?: { name: string; body: string }; ringRadius: number }
+export interface BuoyMarker { id: string; lat: number; lon: number; label: string; ok: boolean }
+export type Mode = "forecast" | "refraction" | "buoys";
+export interface Layers { satellite: boolean; zones: boolean; streamlines: boolean; rings: boolean; labels: boolean; windBand: boolean }
 
 interface Props {
-  markers: MarkerDatum[];
-  buoys: BuoyDatum[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  ww3: { index: GridIndex; step: Ww3Step } | null;
-  hrrr: { index: GridIndex; step: HrrrStep } | null;
-  layers: Layers;
-  basemap: "satellite" | "light";
+  spots: SpotMarker[]; buoys: BuoyMarker[]; selectedId: string | null; onSelect: (id: string | null) => void;
+  mode: Mode; layers: Layers; wind: { index: GridIndex; step: HrrrStep } | { index: GridIndex; step: Ww3Step } | null;
+  flyTo: { lon: number; lat: number; key: number } | null;
 }
 
-const COLORS = { grey: "#c3cbd4", yellow: "#ffd23f", green: "#3ddc84" };
-const LIGHT_STYLE = "https://tiles.openfreemap.org/styles/positron"; // free, keyless, OpenMapTiles-based
-// Esri World Imagery: free with attribution (https://www.esri.com/en-us/legal/terms/data-attributions)
-const SATELLITE_STYLE: StyleSpecification = {
+const SATELLITE: StyleSpecification = {
   version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
   sources: { esri: { type: "raster", tileSize: 256, maxzoom: 18, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-    attribution: "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community" } },
-  layers: [{ id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.45, "raster-brightness-max": 0.72, "raster-contrast": 0.1 } }],
+    attribution: "Imagery © Esri, Maxar, Earthstar Geographics, GIS User Community" } },
+  layers: [{ id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.2, "raster-brightness-max": 0.9 } }],
 };
-const COORDS: [[number, number], [number, number], [number, number], [number, number]] =
-  [[BBOX.west, BBOX.north], [BBOX.east, BBOX.north], [BBOX.east, BBOX.south], [BBOX.west, BBOX.south]];
-
-// MapLibre 6 resolves its worker with new URL(..., import.meta.url), which Turbopack does not serve;
-// the postinstall script copies the worker (and its shared chunk) into public/vendor/maplibre.
+const PLAIN: StyleSpecification = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#0E2029" } }] };
+const COORDS: [[number, number], [number, number], [number, number], [number, number]] = [[BBOX.west, BBOX.north], [BBOX.east, BBOX.north], [BBOX.east, BBOX.south], [BBOX.west, BBOX.south]];
 setWorkerUrl("/vendor/maplibre/maplibre-gl-worker.mjs");
 
-/** Replace an image source + raster layer (ImageSource.updateImage keeps a stale texture when dimensions change). */
-function setRaster(m: MLMap, id: string, url: string | null, opacity: number, before: string) {
+function setRaster(m: MLMap, id: string, url: string | null, opacity: number) {
   if (m.getLayer(id)) m.removeLayer(id);
   if (m.getSource(id)) m.removeSource(id);
   if (!url) return;
   m.addSource(id, { type: "image", url, coordinates: COORDS });
-  m.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity, "raster-resampling": "linear", "raster-fade-duration": 0 } }, before);
+  m.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity, "raster-resampling": "linear", "raster-fade-duration": 300 } });
 }
 
-function addOverlayLayers(m: MLMap) {
-  m.addSource("buoys", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  m.addSource("spots", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  // anchor layer: rasters are inserted below it
-  m.addLayer({ id: "overlay-anchor", type: "background", paint: { "background-opacity": 0 } });
-  m.addLayer({ id: "buoy-dot", type: "circle", source: "buoys", paint: {
-    "circle-radius": 3.5, "circle-color": ["case", ["get", "ok"], "#ffffff", "#7f8a96"], "circle-stroke-color": "#0b1526", "circle-stroke-width": 1.5 } });
-  m.addLayer({ id: "buoy-label", type: "symbol", source: "buoys", layout: {
-    "text-field": ["get", "label"], "text-size": 10, "text-offset": [0, 1], "text-anchor": "top", "text-font": ["Noto Sans Regular"] },
-    paint: { "text-color": "#fff", "text-halo-color": "#0f172a", "text-halo-width": 1 } });
-  m.addLayer({ id: "spot-dot", type: "circle", source: "spots", paint: {
-    "circle-radius": ["case", ["boolean", ["get", "selected"], false], 7, 5],
-    "circle-color": ["get", "hex"], "circle-stroke-color": "#0b1526", "circle-stroke-width": 1.5 } });
-  m.addLayer({ id: "spot-label", type: "symbol", source: "spots", layout: {
-    "text-field": ["get", "label"], "text-size": 10.5, "text-offset": [0, 1.1], "text-anchor": "top", "text-font": ["Noto Sans Bold"],
-    "text-transform": "uppercase", "text-letter-spacing": 0.06, "text-allow-overlap": false, "text-optional": true, "text-padding": 4,
-    "symbol-sort-key": ["-", 100, ["get", "score"]] },
-    paint: { "text-color": "#f4f8fb", "text-halo-color": "#0b1526", "text-halo-width": 1.3 } });
-  m.addLayer({ id: "spot-callout", type: "symbol", source: "spots", filter: ["has", "callout"], layout: {
-    "text-field": ["get", "callout"], "text-size": 11, "text-offset": [0, -3.2], "text-anchor": "bottom", "text-font": ["Noto Sans Bold"],
-    "text-max-width": 16, "text-allow-overlap": false, "text-optional": true, "text-padding": 10, "symbol-sort-key": ["-", 0, ["get", "score"]] },
-    paint: { "text-color": "#d6fff0", "text-halo-color": "#0b1526", "text-halo-width": 2 } });
-}
+const pinSvg = (band: Band, featured: boolean, state: string) => featured
+  ? `<svg width="22" height="28" viewBox="0 0 22 28"><path d="M11 27C11 27 21 16.5 21 10.5A10 10 0 0 0 1 10.5C1 16.5 11 27 11 27Z" fill="${BAND_HEX[band]}" stroke="#0E2029" stroke-width="1.5"/><text x="11" y="13.5" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="800" font-size="8" fill="#0E2029">${state}</text></svg>`
+  : `<svg width="16" height="20" viewBox="0 0 16 20"><path d="M8 19.3C8 19.3 15 11.8 15 7.5A7 7 0 0 0 1 7.5C1 11.8 8 19.3 8 19.3Z" fill="${BAND_HEX[band]}" stroke="#0E2029" stroke-width="1.3"/><circle cx="8" cy="7.5" r="2.4" fill="#0E2029"/></svg>`;
 
-export default function SurfMap({ markers, buoys, selectedId, onSelect, ww3, hrrr, layers, basemap }: Props) {
+interface Entry { marker: Marker; el: HTMLDivElement; pin: HTMLDivElement; label: HTMLDivElement; callout: HTMLDivElement }
+
+export default function SurfMap({ spots, buoys, selectedId, onSelect, mode, layers, wind, flyTo }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
-  const particles = useRef<SwellParticles | null>(null);
-  const onSelectRef = useRef(onSelect);
-  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  const flow = useRef<FlowCanvas | null>(null);
+  const entries = useRef<Map<string, Entry>>(new Map());
+  const buoyMarkers = useRef<Marker[]>([]);
+  const onSelectRef = useRef(onSelect); useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   const [ready, setReady] = useState(false);
+  const tint = useRef<string | null>(null);
 
-  // create the map once
+  /** Callouts win, then labels by rank: drop whatever overlaps something already kept (pins always stay).
+   *  Callouts near the right edge flip to the left of the pin. */
+  const collide = () => {
+    const m = map.current; if (!m) return;
+    const W = m.getContainer().clientWidth;
+    const kept: DOMRect[] = [];
+    const hits = (r: DOMRect) => kept.some((k) => !(r.right < k.left || r.left > k.right || r.bottom < k.top || r.top > k.bottom));
+    const sorted = [...entries.current.values()].sort((a, b) => Number(b.el.dataset.score) - Number(a.el.dataset.score));
+    for (const e of sorted) {
+      if (e.callout.classList.contains("hidden")) continue;
+      e.callout.style.left = "12px"; e.callout.style.right = "auto";
+      let r = e.callout.getBoundingClientRect();
+      if (r.right > W - 8) { e.callout.style.left = "auto"; e.callout.style.right = "12px"; r = e.callout.getBoundingClientRect(); }
+      kept.push(r);
+    }
+    for (const e of sorted) {
+      e.label.style.visibility = "visible";
+      const r = e.label.getBoundingClientRect();
+      if (hits(r)) e.label.style.visibility = "hidden"; else kept.push(r);
+    }
+  };
+
   useEffect(() => {
     if (!el.current || map.current) return;
-    const m = new MLMap({
-      container: el.current, style: basemap === "satellite" ? SATELLITE_STYLE : LIGHT_STYLE, attributionControl: { compact: true },
-      bounds: [[BBOX.west, BBOX.south], [BBOX.east, BBOX.north]], fitBoundsOptions: { padding: 24 },
-      maxBounds: [[BBOX.west - 3, BBOX.south - 2], [BBOX.east + 3, BBOX.north + 2]],
-    });
-    m.addControl(new NavigationControl({ showCompass: false }), "top-right");
-    m.on("load", () => {
-      addOverlayLayers(m);
-      m.on("click", "spot-dot", (e: MapLayerMouseEvent) => onSelectRef.current(String(e.features?.[0]?.properties?.id ?? "")));
-      m.on("mouseenter", "spot-dot", () => (m.getCanvas().style.cursor = "pointer"));
-      m.on("mouseleave", "spot-dot", () => (m.getCanvas().style.cursor = ""));
-      particles.current = new SwellParticles(m);
-      setReady(true);
-    });
+    const m = new MLMap({ container: el.current, style: SATELLITE, attributionControl: { compact: true },
+      bounds: [[-72.2, 40.9], [-69.6, 43.6]], fitBoundsOptions: { padding: 12 }, maxBounds: [[BBOX.west - 1, BBOX.south - 1], [BBOX.east + 1, BBOX.north + 1]], minZoom: 5.5 });
+    m.on("load", () => { flow.current = new FlowCanvas(m); setReady(true); });
+    m.on("click", () => onSelectRef.current(null));
+    m.on("move", () => collide());
     map.current = m;
-    if (process.env.NODE_ENV !== "production") (window as unknown as { __nesurfMap?: MLMap }).__nesurfMap = m; // debugging hook
-    return () => { particles.current?.destroy(); particles.current = null; m.remove(); map.current = null; setReady(false); };
+    if (process.env.NODE_ENV !== "production") (window as unknown as { __nesurfMap?: MLMap }).__nesurfMap = m;
+    return () => { flow.current?.destroy(); flow.current = null; entries.current.forEach((e) => e.marker.remove()); entries.current.clear(); m.remove(); map.current = null; setReady(false); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // basemap switch: swap the style and re-add our layers when it has loaded
+  // basemap toggle (satellite vs plain chrome background)
   useEffect(() => {
     const m = map.current; if (!m || !ready) return;
-    const cur = (m as unknown as { __basemap?: string }).__basemap ?? "satellite";
-    if (cur === basemap) return;
-    (m as unknown as { __basemap?: string }).__basemap = basemap;
-    m.once("style.load", () => { addOverlayLayers(m); setReady(false); setTimeout(() => setReady(true), 0); });
-    m.setStyle(basemap === "satellite" ? SATELLITE_STYLE : LIGHT_STYLE);
-  }, [basemap, ready]);
+    const want = layers.satellite ? "sat" : "plain"; const cur = (m as unknown as { __base?: string }).__base ?? "sat";
+    if (want === cur) return; (m as unknown as { __base?: string }).__base = want;
+    m.once("style.load", () => { setReady(false); setTimeout(() => setReady(true), 0); });
+    m.setStyle(layers.satellite ? SATELLITE : PLAIN);
+  }, [layers.satellite, ready]);
 
-  // markers
+  // rasters: ocean tint, zones or bathymetry, coastal wind band
   useEffect(() => {
     const m = map.current; if (!m || !ready) return;
     const apply = () => {
       if (!m.isStyleLoaded()) { m.once("render", apply); return; }
-      const src = m.getSource("spots") as GeoJSONSource | undefined; if (!src) return;
-      src.setData({ type: "FeatureCollection", features: markers.map((k) => ({
-        type: "Feature", geometry: { type: "Point", coordinates: [k.lon, k.lat] },
-        properties: { id: k.id, hex: COLORS[k.color], color: k.color, score: k.score, selected: k.id === selectedId, label: `${k.name} · ${k.score}`, ...(k.callout ? { callout: k.callout } : {}) },
-      })) });
+      if (!tint.current) tint.current = oceanTintDataUrl();
+      setRaster(m, "ocean-tint", tint.current, 0.55);
+      const zoneUrl = mode === "refraction" ? bathyDataUrl() : layers.zones ? zonesDataUrl(spots.map((s) => ({ lat: s.lat, lon: s.lon, band: s.band }))) : null;
+      setRaster(m, "zones", zoneUrl, 1);
+      setRaster(m, "wind-band", layers.windBand && wind ? windShadeDataUrl(wind) : null, 0.75);
     };
     apply();
-    // hotspot rings: strength by band (green pulses hardest, grey barely)
-    particles.current?.setRings(layers.rings ? markers.map((k) => ({ lon: k.lon, lat: k.lat, color: COLORS[k.color], strength: k.color === "green" ? 1 : k.color === "yellow" ? 0.6 : 0 })) : []);
-  }, [markers, selectedId, ready, layers.rings]);
+  }, [spots, mode, layers.zones, layers.windBand, wind, ready]);
 
-  // buoys
+  // streamlines
+  useEffect(() => { if (!ready) return; flow.current?.setField(layers.streamlines && wind ? windVectorField(wind) : null); }, [wind, layers.streamlines, ready]);
+
+  // rings: one per active (green) break, plus the selected break; others dim when one is selected
+  useEffect(() => {
+    if (!ready) return;
+    const rings: Ring[] = mode === "buoys" || !layers.rings ? [] : spots.filter((s) => s.band === "good" || s.id === selectedId)
+      .map((s) => ({ id: s.id, lon: s.lon, lat: s.lat, color: BAND_HEX[s.band], radius: s.ringRadius, dim: !!selectedId && selectedId !== s.id }));
+    flow.current?.setRings(rings);
+  }, [spots, selectedId, layers.rings, mode, ready]);
+
+  // HTML markers: pin + plated label + callout
   useEffect(() => {
     const m = map.current; if (!m || !ready) return;
-    const apply = () => {
-      if (!m.isStyleLoaded()) { m.once("render", apply); return; }
-      const src = m.getSource("buoys") as GeoJSONSource | undefined; if (!src) return;
-      src.setData({ type: "FeatureCollection", features: buoys.map((b) => ({
-        type: "Feature", geometry: { type: "Point", coordinates: [b.lon, b.lat] }, properties: { id: b.id, label: b.label, ok: b.ok } })) });
-    };
-    apply();
-  }, [buoys, ready]);
-
-  // per-step rasters: swell-quality ocean shading, coastal wind shading, optional wind heat
-  useEffect(() => {
-    const m = map.current; if (!m || !ready) return;
-    const apply = () => {
-      if (!m.isStyleLoaded() || !m.getLayer("overlay-anchor")) { m.once("render", apply); return; }
-      const quality = ww3 ? swellQuality(ww3.step) : null;
-      setRaster(m, "swell-shade", layers.swellShade && ww3 && quality ? swellShadeDataUrl(ww3.index, ww3.step, quality) : null, 0.62, "overlay-anchor");
-      const windSrc = hrrr ?? ww3;
-      setRaster(m, "wind-shade", layers.windShade && windSrc ? windShadeDataUrl(windSrc) : null, 0.8, "overlay-anchor");
-      let heat: string | null = null;
-      if (layers.windHeat && hrrr) {
-        const { u10, v10 } = hrrr.step.fields; const mask = (hrrr.index as { paint_mask?: number[] }).paint_mask;
-        heat = gridToDataUrl(hrrr.index, (k) => (u10[k] == null || v10[k] == null || (mask && !mask[k]) ? null : Math.hypot(u10[k]!, v10[k]!) * 1.944), windColor, 2);
-      } else if (layers.windHeat && ww3) {
-        const ws = ww3.step.fields.wind_speed; heat = gridToDataUrl(ww3.index, (k) => (ws[k] == null ? null : ws[k]! * 1.944), windColor, 6);
+    const seen = new Set<string>();
+    for (const s of spots) {
+      seen.add(s.id);
+      let e = entries.current.get(s.id);
+      if (!e) {
+        const root = document.createElement("div"); root.className = "relative"; root.style.cursor = "pointer";
+        const pin = document.createElement("div"); pin.className = "absolute -translate-x-1/2 -translate-y-full";
+        const label = document.createElement("div"); label.className = "plate t-label absolute whitespace-nowrap"; label.style.left = "12px"; label.style.top = "-22px";
+        const callout = document.createElement("div"); callout.className = "panel absolute whitespace-nowrap px-2 hidden"; callout.style.left = "12px"; callout.style.top = "12px"; callout.style.height = "24px"; callout.style.lineHeight = "24px"; callout.style.fontSize = "11px"; callout.style.boxShadow = "0 3px 10px rgba(0,0,0,.4)";
+        root.append(pin, label, callout);
+        root.addEventListener("click", (ev) => { ev.stopPropagation(); onSelectRef.current(s.id); });
+        const marker = new Marker({ element: root, anchor: "bottom" }).setLngLat([s.lon, s.lat]).addTo(m);
+        e = { marker, el: root, pin, label, callout }; entries.current.set(s.id, e);
       }
-      setRaster(m, "wind-heat", heat, 0.5, "overlay-anchor");
-      particles.current?.setField(layers.streamlines && ww3 ? { index: ww3.index, step: ww3.step } : null);
-    };
-    apply();
-  }, [ww3, hrrr, layers.swellShade, layers.windShade, layers.windHeat, layers.streamlines, ready]);
+      e.el.dataset.score = String(s.score);
+      e.pin.innerHTML = pinSvg(s.band, s.featured, s.state);
+      e.pin.style.marginTop = s.featured ? "0" : "0";
+      e.label.textContent = s.name;
+      e.label.style.display = layers.labels ? "" : "none";
+      e.label.style.top = s.featured ? "-26px" : "-20px";
+      const showCallout = s.id === selectedId || (!selectedId && !!s.callout);
+      if (showCallout && s.callout) {
+        e.callout.innerHTML = `<span style="color:${BAND_HEX[s.band]};font-weight:700">${s.callout.name}:</span> <span style="font-weight:500;color:#E8EEF2">${s.callout.body}</span>`;
+        e.callout.classList.remove("hidden");
+      } else e.callout.classList.add("hidden");
+      e.marker.getElement().style.zIndex = s.id === selectedId ? "30" : s.featured ? "20" : "10";
+      e.marker.setLngLat([s.lon, s.lat]);
+    }
+    for (const [id, e] of entries.current) if (!seen.has(id)) { e.marker.remove(); entries.current.delete(id); }
+    collide();
+  }, [spots, selectedId, layers.labels, ready]);
 
-  // wrapper carries the positioning: maplibre-gl.css forces position:relative on the map element itself
+  // buoy markers (live buoy feed mode)
+  useEffect(() => {
+    const m = map.current; if (!m || !ready) return;
+    buoyMarkers.current.forEach((b) => b.remove()); buoyMarkers.current = [];
+    if (mode !== "buoys") return;
+    for (const b of buoys) {
+      const root = document.createElement("div"); root.className = "flex items-center gap-1.5";
+      root.innerHTML = `<span style="width:10px;height:10px;border-radius:9999px;background:${b.ok ? "#E8EEF2" : "#9C9EA1"};border:2px solid #0E2029;box-shadow:0 0 0 2px ${b.ok ? "#64D5CC" : "transparent"}"></span><span class="plate t-label">${b.label}</span>`;
+      buoyMarkers.current.push(new Marker({ element: root, anchor: "left" }).setLngLat([b.lon, b.lat]).addTo(m));
+    }
+  }, [buoys, mode, ready]);
+
+  // fly to a spot (search / hotspot card)
+  useEffect(() => { const m = map.current; if (!m || !flyTo) return; m.flyTo({ center: [flyTo.lon, flyTo.lat], zoom: Math.max(m.getZoom(), 9), duration: 900 }); }, [flyTo]);
+
   return <div className="absolute inset-0"><div ref={el} className="h-full w-full" /></div>;
 }

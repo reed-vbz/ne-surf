@@ -1,162 +1,171 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import Timeline from "@/components/timeline/Timeline";
-import SpotPanel from "@/components/spots/SpotPanel";
-import type { BuoyDatum, Layers, MarkerDatum } from "@/components/map/SurfMap";
-import { atTime, loadHrrrStep, loadWw3Step, type HrrrStep, type Ww3Step } from "@/lib/cache";
-import { bestWindow, forecastFor } from "@/lib/forecast";
-import { BAND_LABEL } from "@/lib/quality";
+import { useEffect, useMemo, useRef, useState } from "react";
+import DayTimeline, { type Day } from "@/components/timeline/DayTimeline";
+import type { BuoyMarker, Layers, Mode, SpotMarker } from "@/components/map/SurfMap";
+import { loadHrrrStep, loadWw3Step, type HrrrStep, type Ww3Step, atTime } from "@/lib/cache";
+import { byDay, dayKeyOf, forecastFor, representativePoint, type ForecastPoint } from "@/lib/forecast";
+import { BAND_HEX, BAND_WORD, TOKENS, bandFor } from "@/lib/overlays";
+import { assessWind } from "@/lib/quality";
 import { SPOTS } from "@/lib/spots";
-import { hoursAgo, useForecastData } from "@/lib/useForecastData";
+import { useForecastData } from "@/lib/useForecastData";
 
 const SurfMap = dynamic(() => import("@/components/map/SurfMap"), { ssr: false });
-const DOT = { grey: "bg-slate-400", yellow: "bg-[#ffd23f]", green: "bg-[#3ddc84]" };
 const compass = (d: number) => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
-const fmtShort = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", timeZone: "America/New_York" });
+const fmtDay = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/New_York" });
+const fmtShort = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "America/New_York" });
+const FEATURED = new Set(["higgins-me", "ruggles-ri", "nauset-beach-ma", "matunuck-ri", "long-sands-me", "coast-guard-beach-ma"]);
+const MODES: Array<[Mode, string, string]> = [["forecast", "Forecast slider", "M3 6h10M3 12h10M3 18h10M17 6v12"], ["refraction", "Refraction map", "M3 4h18v16H3zM3 10h18M9 4v16"], ["buoys", "Live buoy feed", "M12 3v18M6 21h12M5 9l7-6 7 6"]];
+
+function calloutFor(p: ForecastPoint) {
+  const d = p.result.dominant; if (!d) return null;
+  const lo = Math.max(1, Math.round(p.result.face_ft)), hi = Math.round(p.result.face_ft * 1.3);
+  return `${lo}-${hi}ft @ ${d.tp.toFixed(0)}s (${compass(d.dp)})${p.cond.wind ? ` | ${compass(p.cond.wind.dir_from_deg)} Wind` : ""}`;
+}
 
 export default function Page() {
   const data = useForecastData();
-  const [stepIdx, setStepIdx] = useState(0);
+  const [dayIdx, setDayIdx] = useState(0);
+  const [mode, setMode] = useState<Mode>("forecast");
+  const [layers, setLayers] = useState<Layers>({ satellite: true, zones: true, streamlines: true, rings: true, labels: true, windBand: true });
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [flyTo, setFlyTo] = useState<{ lon: number; lat: number; key: number } | null>(null);
   const [ww3Step, setWw3Step] = useState<Ww3Step | null>(null);
   const [hrrrStep, setHrrrStep] = useState<HrrrStep | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [layers, setLayers] = useState<Layers>({ swellShade: true, streamlines: true, windShade: true, windHeat: false, rings: true });
-  const [basemap, setBasemap] = useState<"satellite" | "light">("satellite");
-  const toggle = (k: keyof Layers) => setLayers((l) => ({ ...l, [k]: !l[k] }));
-  const [listOpen, setListOpen] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const flyKey = useRef(0);
 
-  const { ww3, hrrr } = data;
-  const step = ww3?.index.steps[stepIdx] ?? null;
-
-  // per-step gridded layers
-  useEffect(() => {
-    if (!ww3 || !step) return;
-    let live = true;
-    loadWw3Step(step.file).then((s) => live && setWw3Step(s));
-    const h = hrrr ? atTime(hrrr.index.steps, step.valid_time, 45) : null;
-    (h ? loadHrrrStep(h.file) : Promise.resolve(null)).then((s) => live && setHrrrStep(s));
-    return () => { live = false; };
-  }, [ww3, hrrr, step]);
-
-  // full-horizon forecast for every spot (cheap: 21 spots × 57 steps)
   const forecasts = useMemo(() => SPOTS.map((spot) => ({ spot, points: forecastFor(spot, data) })), [data]);
-  const results = useMemo(() => forecasts.map(({ spot, points }) => ({ spot, now: points[stepIdx] ?? null, best: bestWindow(points) })), [forecasts, stepIdx]);
+  const days: Day[] = useMemo(() => {
+    const pts = forecasts[0]?.points ?? [];
+    return byDay(pts).slice(0, 7).map((d) => ({ key: d.day, label: fmtDay.format(new Date(d.best.valid_time)).toUpperCase(), short: fmtShort.format(new Date(d.best.valid_time)) }));
+  }, [forecasts]);
+  const day = days[dayIdx]?.key;
+  const [todayKey] = useState(() => dayKeyOf(Date.now()));
 
-  const top = [...results].filter((r) => r.now).sort((a, b) => b.now!.result.score - a.now!.result.score).slice(0, 2).filter((r) => r.now!.result.score >= 30).map((r) => r.spot.id);
-  const markers: MarkerDatum[] = results.filter((r) => r.now).map(({ spot, now }) => {
-    const d = now!.result.dominant, w = now!.cond.wind;
-    const callout = top.includes(spot.id) && d
-      ? `${spot.name.toUpperCase()}: ${now!.result.face_ft.toFixed(0)}–${(now!.result.face_ft * 1.25).toFixed(0)} ft @ ${d.tp.toFixed(0)} s (${compass(d.dp)})${w ? ` | ${compass(w.dir_from_deg)} wind` : ""}`
-      : undefined;
-    return { id: spot.id, name: spot.name, lat: spot.location.lat, lon: spot.location.lon, score: now!.result.score, color: now!.result.color, face_ft: now!.result.face_ft, callout };
-  });
-  const buoys: BuoyDatum[] = (ww3?.spots.buoys ?? []).map((b) => {
-    const o = data.ndbc?.buoys[b.id];
-    const ok = !!o && o.status === "ok" && o.wvht_m != null;
-    return { id: b.id, lat: b.position.lat, lon: b.position.lon, ok, label: ok ? `${b.id} ${(o!.wvht_m! * 3.28).toFixed(1)} ft ${o!.dpd_s ?? "–"} s` : `${b.id} offline` };
-  });
-  const sel = results.find((r) => r.spot.id === selected && r.now) ?? null;
-  const ranked = [...results].filter((r) => r.now).sort((a, b) => b.now!.result.score - a.now!.result.score);
-  const age = hoursAgo(ww3?.index.generated_at);
+  // per-spot best point of the selected day (what the zones, callouts and hotspot use)
+  const daily = useMemo(() => forecasts.map(({ spot, points }) => {
+    const d = byDay(points).find((x) => x.day === day);
+    return { spot, best: d?.best ?? null, rep: day ? representativePoint(points, day, todayKey) : null };
+  }).filter((x) => x.best), [forecasts, day, todayKey]);
+  const ranked = useMemo(() => [...daily].sort((a, b) => b.best!.result.score - a.best!.result.score), [daily]);
+  const top2 = new Set(ranked.slice(0, 2).map((r) => r.spot.id));
 
-  const list = (
-    <div className="flex flex-col">
-      {ranked.map(({ spot, now, best }) => (
-        <button key={spot.id} onClick={() => { setSelected(spot.id); setListOpen(false); }}
-          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/10 ${selected === spot.id ? "bg-white/10" : ""}`}>
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[now!.result.color]}`} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-slate-100">{spot.name}</span>
-            {best && best.result.score > now!.result.score + 10 && (
-              <span className="block truncate text-[10px] text-slate-500">best {fmtShort.format(new Date(best.valid_time))} · {best.result.score}</span>)}
-          </span>
-          <span className="text-slate-400">{BAND_LABEL[now!.result.band]}</span>
-          <span className="w-6 text-right font-semibold tabular-nums text-white">{now!.result.score}</span>
-        </button>))}
-    </div>
-  );
+  // gridded layers for the day's representative hour
+  const repTime = daily[0]?.rep?.valid_time ?? null;
+  useEffect(() => {
+    if (!data.ww3 || !repTime) return;
+    let live = true;
+    const w = atTime(data.ww3.index.steps, repTime), h = data.hrrr ? atTime(data.hrrr.index.steps, repTime, 45) : null;
+    Promise.all([w ? loadWw3Step(w.file) : null, h ? loadHrrrStep(h.file) : null]).then(([ws, hs]) => { if (!live) return; setWw3Step(ws); setHrrrStep(hs); setLoadedFor(repTime); });
+    return () => { live = false; };
+  }, [data.ww3, data.hrrr, repTime]);
+  const stepLoading = !!repTime && loadedFor !== repTime;
+  const wind = data.hrrr && hrrrStep ? { index: data.hrrr.index, step: hrrrStep } : data.ww3 && ww3Step ? { index: data.ww3.index, step: ww3Step } : null;
+
+  const spots: SpotMarker[] = daily.map(({ spot, best }) => {
+    const b = best!; const band = bandFor(b.result.score); const body = calloutFor(b);
+    return { id: spot.id, name: spot.name, state: spot.state, lat: spot.location.lat, lon: spot.location.lon, band, score: b.result.score, featured: FEATURED.has(spot.id),
+      callout: body && (top2.has(spot.id) || selected === spot.id) ? { name: spot.name.split(" (")[0].toUpperCase(), body } : undefined,
+      ringRadius: 10 + Math.min(30, b.result.face_m * 8) };
+  });
+  const buoys: BuoyMarker[] = (data.ww3?.spots.buoys ?? []).map((b) => { const o = data.ndbc?.buoys[b.id]; const ok = !!o && o.status === "ok" && o.wvht_m != null;
+    return { id: b.id, lat: b.position.lat, lon: b.position.lon, ok, label: ok ? `${b.id} · ${(o!.wvht_m! * 3.28).toFixed(1)}ft @ ${o!.dpd_s ?? "–"}s` : `${b.id} · offline` }; });
+
+  const hot = ranked[0] ?? null;
+  const hotWind = hot?.best?.cond.wind ? assessWind(hot.spot, hot.best.cond.wind) : null;
+  const windWord = !hotWind ? "" : hotWind.label === "offshore" || hotWind.label === "glassy" ? "Optimal" : hotWind.label === "onshore" || hotWind.label === "cross-on" ? "Onshore" : "Cross-shore";
+  const matches = query.trim() ? SPOTS.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6) : [];
+  const go = (id: string) => { const s = SPOTS.find((x) => x.id === id); if (!s) return; setSelected(id); setQuery(""); setFlyTo({ lon: s.location.lon, lat: s.location.lat, key: ++flyKey.current }); };
+  const toggle = (k: keyof Layers) => setLayers((l) => ({ ...l, [k]: !l[k] }));
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-[#071120]">
-      <SurfMap markers={markers} buoys={buoys} selectedId={selected} onSelect={setSelected}
-        ww3={ww3 && ww3Step ? { index: ww3.index, step: ww3Step } : null}
-        hrrr={hrrr && hrrrStep ? { index: hrrr.index, step: hrrrStep } : null}
-        layers={layers} basemap={basemap} />
+    <main className="relative h-dvh w-full overflow-hidden bg-chrome text-t1">
+      <SurfMap spots={spots} buoys={buoys} selectedId={selected} onSelect={setSelected} mode={mode} layers={layers} wind={wind} flyTo={flyTo} />
 
-      <header className="absolute inset-x-0 top-0 z-10 border-b border-white/10 bg-[#0b1526]/92 text-slate-100 shadow-xl backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-2">
-          <span className="grid h-6 w-6 place-items-center rounded bg-cyan-400 text-[11px] font-black text-[#0b1526]">↗</span>
-          <h1 className="text-sm font-bold uppercase tracking-[0.14em]">NE Surf Overview <span className="font-normal text-slate-400">(free map)</span></h1>
-          <span className="hidden text-[11px] text-slate-400 md:inline">
-            {ww3 ? `GFS-Wave ${ww3.index.cycle.slice(5, 13)}Z` : data.loading ? "loading…" : "no data"}{hrrr ? ` · HRRR ${hrrr.index.cycle.slice(5, 13)}Z` : ""}
-            {age !== null && <span className={age > 12 ? "text-amber-400" : ""}> · fetched {age < 1 ? "<1" : age.toFixed(0)} h ago{age > 12 ? " (stale)" : ""}</span>}
-          </span>
-          <Link href="/about" className="ml-auto text-[11px] uppercase tracking-wider text-slate-400 hover:text-white">how it works</Link>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-white/5 px-4 py-1.5 text-[11px]">
-          {([["swellShade", "Swell field"], ["streamlines", "Streamlines"], ["windShade", "Wind overlay"], ["rings", "Hotspots"]] as Array<[keyof Layers, string]>).map(([k, label]) => (
-            <button key={k} onClick={() => toggle(k)}
-              className={`rounded-full border px-2.5 py-0.5 uppercase tracking-wider ${layers[k] ? "border-cyan-400/60 bg-cyan-400/15 text-cyan-200" : "border-white/15 text-slate-400"}`}>{label}</button>))}
-          <button onClick={() => setBasemap((b) => (b === "satellite" ? "light" : "satellite"))} className="rounded-full border border-white/15 px-2.5 py-0.5 uppercase tracking-wider text-slate-300">{basemap === "satellite" ? "Light map" : "Satellite"}</button>
-          <button onClick={() => setListOpen((o) => !o)} className="ml-auto rounded-full bg-cyan-400 px-3 py-0.5 font-semibold uppercase tracking-wider text-[#0b1526] md:hidden">Spots</button>
-        </div>
-        {data.error && <div className="mx-4 mb-2 rounded-lg bg-red-500/20 p-2 text-xs text-red-200">{data.error}</div>}
-      </header>
-
-      {/* ranked list: side card on desktop, sheet on mobile */}
-      <div className="absolute right-4 top-24 z-10 hidden max-h-[42vh] w-64 overflow-y-auto rounded-xl border border-white/10 bg-[#0b1526]/90 p-2 text-slate-100 shadow-2xl backdrop-blur md:block">
-        <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Ranked now</div>{list}</div>
-      {listOpen && (
-        <div className="absolute inset-x-2 bottom-28 top-28 z-20 overflow-y-auto rounded-xl border border-white/10 bg-[#0b1526]/95 p-2 text-slate-100 shadow-2xl backdrop-blur md:hidden">
-          <div className="flex items-center justify-between px-2 pb-1 text-[10px] uppercase tracking-[0.18em] text-slate-400"><span>Ranked now</span><button onClick={() => setListOpen(false)}>close</button></div>
-          {list}
-        </div>
-      )}
-
-      {sel && sel.now && (
-        <div className="absolute inset-x-2 bottom-28 top-auto z-10 max-h-[55vh] md:inset-x-auto md:bottom-[16.5rem] md:left-4 md:top-24 md:max-h-none md:w-80">
-          <SpotPanel spot={sel.spot} result={sel.now.result} cond={sel.now.cond} onClose={() => setSelected(null)}
-            buoys={sel.spot.buoys.map((id) => [id, data.ndbc?.buoys[id]])} bathy={data.bathy.spots[sel.spot.id] ?? null} />
-        </div>
-      )}
-
-      <div className="pointer-events-none absolute bottom-24 left-4 z-10 hidden w-60 flex-col gap-2 md:flex">
-        <div className="rounded-lg border border-white/10 bg-[#0b1526]/90 px-3 py-2 text-[10px] text-slate-300 shadow-xl backdrop-blur">
-          <div className="font-semibold uppercase tracking-[0.16em] text-white">Swell interaction</div>
-          <div className="text-slate-500">deep-water swell field · streamlines follow the swell</div>
-          <div className="mt-1.5 h-2 rounded" style={{ background: "linear-gradient(90deg,#071a3a,#0c3d7a,#1178b8,#2fc4e8,#b6f3ff)" }} />
-          <div className="flex justify-between uppercase tracking-wider"><span>low</span><span>clean</span><span>high</span></div>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-[#0b1526]/90 px-3 py-2 text-[10px] text-slate-300 shadow-xl backdrop-blur">
-          <div className="font-semibold uppercase tracking-[0.16em] text-white">Wind overlay</div>
-          <div className="text-slate-500">HRRR wind on the coast band</div>
-          <div className="mt-1.5 h-2 rounded" style={{ background: "linear-gradient(90deg,#3ddc84,#b8c2cc,#ff9a4d)" }} />
-          <div className="flex justify-between uppercase tracking-wider"><span>offshore</span><span>cross-shore</span><span>onshore</span></div>
-        </div>
-      </div>
-      {ranked[0] && (
-        <div className="pointer-events-none absolute bottom-24 right-3 z-10 hidden w-60 rounded-lg border border-white/10 bg-[#0b1526]/90 px-3 py-2 text-[11px] text-slate-300 shadow-xl backdrop-blur md:block">
-          <div className="font-semibold uppercase tracking-[0.16em] text-white">Surf quality hotspot</div>
-          <div className="text-[10px] text-slate-500">best scoring break at this hour</div>
-          <div className="mt-1 flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 rounded-full ${DOT[ranked[0].now!.result.color]}`} />
-            <span className="font-semibold text-white">{BAND_LABEL[ranked[0].now!.result.band]}</span>
+      {/* chrome: header + toolbar (fixed, map scrolls under) */}
+      <div className="absolute inset-x-0 top-0 z-20" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <header className="flex h-11 items-center gap-3 bg-chrome px-4">
+          <span className="grid h-7 w-7 place-items-center rounded-[6px] bg-accent"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E2029" strokeWidth="2.5"><path d="M3 17l6-6 4 4 8-8M15 7h6v6" /></svg></span>
+          <h1 className="t-title text-t1">NE Surf Overview <span className="font-medium text-t3">(free map)</span></h1>
+          <Link href="/about" aria-label="Menu" className="ml-auto grid h-11 w-11 place-items-center text-t1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg></Link>
+        </header>
+        <div className="flex h-11 items-center gap-[6px] bg-toolbar px-2">
+          {MODES.map(([m, label, icon]) => (
+            <button key={m} onClick={() => setMode(m)} aria-label={label} aria-pressed={mode === m} className="t-chip flex h-[30px] items-center gap-1.5 rounded-[6px] border px-[9px]"
+              style={mode === m ? { background: "var(--accent)", color: "#0E2029", borderColor: "var(--accent)" } : { background: "rgba(255,255,255,.10)", borderColor: "rgba(255,255,255,.16)", color: "#E8EEF2" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={icon} /></svg><span className="hidden sm:inline">{label}</span>
+            </button>))}
+          <div className="relative ml-auto min-w-[88px] flex-1 sm:max-w-[220px]">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search breaks"
+              className="h-[30px] w-full rounded-[6px] bg-input pl-7 pr-2 text-[11px] font-medium text-t1 placeholder:text-t3 focus:outline-none" />
+            <svg className="pointer-events-none absolute left-2 top-2" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9FB1BC" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
+            {matches.length > 0 && (
+              <ul className="panel absolute left-0 right-0 top-9 z-30 overflow-hidden">
+                {matches.map((s) => <li key={s.id}><button onClick={() => go(s.id)} className="block w-full px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[.04em] hover:bg-white/10">{s.name} <span className="text-t3">{s.state}</span></button></li>)}
+              </ul>)}
           </div>
-          <div>{ranked[0].spot.name}: ~{ranked[0].now!.result.face_ft.toFixed(0)}–{(ranked[0].now!.result.face_ft * 1.25).toFixed(0)} ft
-            {ranked[0].now!.result.dominant ? ` @ ${ranked[0].now!.result.dominant.tp.toFixed(0)} s` : ""}</div>
-          <div className="mt-1 flex gap-2"><span className="h-1.5 flex-1 rounded bg-emerald-500" /><span className="h-1.5 flex-1 rounded bg-yellow-400" /><span className="h-1.5 flex-1 rounded bg-slate-400" /></div>
-          <div className="flex justify-between text-[9px] uppercase"><span>green</span><span>moderate</span><span>poor</span></div>
         </div>
-      )}
+        {(data.loading || stepLoading) && <div className="progress-line" />}
+        <div className="mx-[6px] mt-2">{days.length > 0 && <DayTimeline days={days} index={dayIdx} onChange={setDayIdx} />}</div>
+        <div className="relative mx-2 mt-2 flex items-start justify-between">
+          <div className="panel fade-in max-w-[168px] px-[10px] py-2">
+            <div className="t-panel text-t1">{mode === "refraction" ? "Refraction map" : mode === "buoys" ? "Live buoy feed" : "Swell interaction"}</div>
+            <div className="t-body">{mode === "refraction" ? "CRM bathymetry, shallow → deep" : mode === "buoys" ? "NDBC observations, live" : "Deep-water refraction, color-coded"}</div>
+          </div>
+          <button onClick={() => setLayersOpen((o) => !o)} aria-label="Layers" className="panel grid h-10 w-10 place-items-center" style={{ border: "1px solid rgba(255,255,255,.14)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8EEF2" strokeWidth="2"><path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5" /></svg>
+          </button>
+        </div>
+        {data.error && <div className="mx-2 mt-2 rounded-lg bg-red-500/20 p-2 text-[11px] text-red-100">{data.error}</div>}
+      </div>
 
-      {ww3 && (
-        <div className="absolute bottom-3 left-3 right-3 z-10 md:bottom-4 md:left-1/2 md:w-[640px] md:-translate-x-1/2">
-          <Timeline steps={ww3.index.steps} index={stepIdx} onChange={setStepIdx} playing={playing} onTogglePlay={() => setPlaying((p) => !p)} />
+      {/* bottom: legends left, hotspot right */}
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex items-end justify-between gap-2" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="flex w-[156px] flex-col gap-2">
+          <div className="panel px-[10px] py-2">
+            <div className="t-panel text-t1" style={{ fontSize: 10 }}>Swell interaction</div>
+            <div className="mt-1.5 h-2 rounded-[4px]" style={{ background: "var(--grad-swell)" }} />
+            <div className="mt-1 flex justify-between text-[10px] font-medium text-white"><span>Low</span><span>Clean</span><span>High</span></div>
+          </div>
+          <div className="panel px-[10px] py-2">
+            <div className="t-panel text-t1" style={{ fontSize: 10 }}>Wind overlay</div>
+            <div className="mt-1.5 h-2 rounded-[4px]" style={{ background: "var(--grad-wind)" }} />
+            <div className="mt-1 flex justify-between text-[10px] font-medium text-white"><span>Offshore</span><span>Cross-shore</span></div>
+          </div>
         </div>
-      )}
+        {hot && hot.best && (
+          <button onClick={() => go(hot.spot.id)} className="panel pointer-events-auto w-[152px] px-[10px] py-2 text-left">
+            <div className="t-panel text-t1" style={{ fontSize: 10 }}>Surf quality hotspot</div>
+            <div className="t-micro mt-0.5" style={{ color: TOKENS.good }}>AI-ranked breaks</div>
+            <div className="mt-1.5 flex items-start gap-1.5">
+              <svg width="14" height="18" viewBox="0 0 16 20"><path d="M8 19.3C8 19.3 15 11.8 15 7.5A7 7 0 0 0 1 7.5C1 11.8 8 19.3 8 19.3Z" fill={BAND_HEX[bandFor(hot.best.result.score)]} /><circle cx="8" cy="7.5" r="2.4" fill="#0E2029" /></svg>
+              <div>
+                <div className="text-[11px] font-800 uppercase tracking-[.04em]" style={{ color: BAND_HEX[bandFor(hot.best.result.score)], fontWeight: 800 }}>{BAND_WORD[bandFor(hot.best.result.score)]}</div>
+                <div className="text-[10px] font-medium text-t1">{hot.spot.name.split(" (")[0]}: {Math.max(1, Math.round(hot.best.result.face_ft))}-{Math.round(hot.best.result.face_ft * 1.3)}ft{hot.best.result.dominant ? ` @ ${hot.best.result.dominant.tp.toFixed(0)}s` : ""}</div>
+                {hot.best.cond.wind && <div className="text-[10px] font-medium text-t2">{compass(hot.best.cond.wind.dir_from_deg)} wind · {windWord}</div>}
+              </div>
+            </div>
+            <div className="mt-2 flex gap-1">{(["good", "moderate", "poor"] as const).map((b) => <span key={b} className="h-2 flex-1 rounded-[4px]" style={{ background: BAND_HEX[b] }} />)}</div>
+            <div className="t-micro mt-1 flex justify-between"><span style={{ color: TOKENS.good }}>Green</span><span style={{ color: TOKENS.moderate }}>Moderate</span><span style={{ color: TOKENS.poor }}>Poor</span></div>
+          </button>)}
+      </div>
+
+      {/* layers bottom sheet */}
+      {layersOpen && (
+        <div className="absolute inset-x-0 bottom-0 z-30 rounded-t-2xl bg-chrome p-4 shadow-[0_-4px_14px_rgba(0,0,0,.35)]" style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}>
+          <div className="mb-2 flex items-center justify-between"><span className="t-panel">Layers</span><button onClick={() => setLayersOpen(false)} className="t-chip h-11 px-2 text-t2">Done</button></div>
+          {([["satellite", "Satellite"], ["zones", "Swell zones"], ["streamlines", "Wind streamlines"], ["windBand", "Coastal wind band"], ["rings", "Rings"], ["labels", "Labels"]] as Array<[keyof Layers, string]>).map(([k, label]) => (
+            <label key={k} className="flex h-11 items-center justify-between border-t border-white/10 text-[12px] font-semibold uppercase tracking-[.04em]">
+              <span>{label}</span>
+              <input type="checkbox" checked={layers[k]} onChange={() => toggle(k)} className="h-5 w-5 accent-[#4798B7]" />
+            </label>))}
+        </div>)}
+      {selected && (
+        <Link href={`/spots/${selected}`} className="panel t-chip absolute right-3 z-20 flex h-8 items-center px-3 text-t1" style={{ bottom: "calc(150px + env(safe-area-inset-bottom))" }}>7-day forecast →</Link>)}
     </main>
   );
 }
