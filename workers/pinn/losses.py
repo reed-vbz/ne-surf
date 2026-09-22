@@ -28,12 +28,12 @@ def pinn_loss(pred: torch.Tensor, target: torch.Tensor | None, x: torch.Tensor, 
                         + 100.0 * F.mse_loss(k * w, target[:, 3:4] * w))
     else:
         terms["mse"] = torch.zeros((), device=pred.device)
-    terms["energy"] = lam1 * (P.energy_balance_residual(hs, theta, depth, tp, water, dx) ** 2).mean()
+    terms["energy"] = lam1 * (P.energy_balance_residual(hs, theta, depth, tp, water, dx).clamp(-10, 10) ** 2).mean()   # Huber-style cap: cells with vanishing flux cannot dominate
     terms["dispersion"] = lam2 * ((P.dispersion_residual(k, depth, tp) ** 2) * water).mean()
     deep = (depth > 3 * hs0) & (water > 0.5)
     shoal = P.shoaling(hs0, depth, tp)
     terms["shoaling"] = lam_soft * (F.relu(shoal - hs) * deep).pow(2).mean()
     terms["breaking"] = lam_soft * (F.relu(hs - P.GAMMA * depth.clamp_min(0.05)) * water).pow(2).mean()
     terms["land"] = lam_soft * ((hs * (1 - water)).pow(2).mean() + (k * (1 - water)).pow(2).mean())
-    total = sum(terms.values())
+    total = sum(torch.nan_to_num(v, nan=0.0, posinf=1e3, neginf=1e3) for v in terms.values())
     return total, {n: float(v.detach()) for n, v in terms.items()}

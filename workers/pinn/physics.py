@@ -35,7 +35,7 @@ def phase_speed(h: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
 
 
 def group_speed(h: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
-    k = wavenumber(h, T); kh = (k * h.clamp_min(0.05)).clamp(1e-6, 50)
+    k = wavenumber(h, T); kh = (k * h.clamp_min(0.05)).clamp(1e-6, 10.0)   # sinh(2·kh) overflows float32 past kh ≈ 44 and its gradient goes NaN; at kh = 10 the term is already < 1e-8
     return phase_speed(h, T) * 0.5 * (1 + 2 * kh / torch.sinh(2 * kh))
 
 
