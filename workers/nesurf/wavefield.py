@@ -11,7 +11,7 @@ Physics (the "teacher" the PINN in workers/pinn is trained against, and the runt
   • height H(x) by linear shoaling (K_s = √(c_g0 / c_g)), a bottom-friction decay over shallow travel, and depth-limited
     breaking H ≤ γ h (γ = 0.78), starting from the WW3 primary swell partition at the boundary.
 
-Texture packing (RGBA8 PNG, one per step, `shape` cells at `res_deg`):
+Texture packing (RGBA8 PNG, one per step, `shape` cells at `res_deg`); plus geometry.png (R,G = sdf m + 8192 16-bit, B = depth/2 m):
   R,G  travel time t, 16-bit big-endian, seconds × T_SCALE (0 = land: the shader discards it and fades crests toward it)
   B    H_s metres × (255 / H_MAX)
   A    255 (data never rides in alpha: browsers may premultiply alpha on image upload)
@@ -37,7 +37,9 @@ G = 9.81
 GRID = REPO_ROOT / "public" / "data" / "nh" / "depth.json"
 OUT = REPO_ROOT / "public" / "cache" / "wavefield"
 WW3 = REPO_ROOT / "public" / "cache" / "ww3"
-STRIDE = 3            # 3 CRM cells → ≈270 m texture cells (320 × 260 for the region)
+STRIDE = 2            # 2 CRM cells → ≈180 m texture cells (480 × 390 for the region)
+DEPTH_SIGMA = 1.0     # Gaussian smoothing of the depth field (cells) before the speed map: no stair-steps along contours
+T_SIGMA = 0.8         # light Gaussian on the travel-time field over water (cells)
 T_SCALE = 0.25        # seconds per 16-bit unit (max ≈ 4.5 h of travel)
 H_MAX = 10.0          # metres at B = 255
 SDF_SCALE = 16.0      # metres per unit in A (±2 km)
@@ -73,9 +75,18 @@ def sdf_metres(water: np.ndarray, res_m: float) -> np.ndarray:
     return np.where(water, d_water, -d_land)
 
 
+def smooth_over_water(a: np.ndarray, water: np.ndarray, sigma: float) -> np.ndarray:
+    """Normalised Gaussian convolution restricted to water cells (land never leaks into the average)."""
+    if sigma <= 0: return a
+    w = water.astype(float)
+    num = ndimage.gaussian_filter(np.where(water, a, 0.0), sigma); den = ndimage.gaussian_filter(w, sigma)
+    return np.where(water, num / np.maximum(den, 1e-6), a)
+
+
 def travel_time(depth: np.ndarray, water: np.ndarray, T: float, dir_from_deg: float, res_m: float) -> np.ndarray:
-    """Fast-marching arrival time (s) of a swell of period T arriving FROM dir_from_deg, from the up-wave grid edge."""
-    c, _ = phase_speed(depth, T); c = np.where(water, c, 1e-3)
+    """Second-order fast-marching arrival time (s) of a swell of period T arriving FROM dir_from_deg, from the up-wave grid
+    edge, on a Gaussian-smoothed depth field; the result is lightly smoothed over water so crests are C¹ across contours."""
+    c, _ = phase_speed(smooth_over_water(depth, water, DEPTH_SIGMA), T); c = np.where(water, c, 1e-3)
     # zero-time front: the up-wave boundary = the water cells nearest the edge the swell comes from (a 2-cell band)
     a = math.radians(dir_from_deg); ux, uy = math.sin(a), math.cos(a)           # unit vector pointing TO where it comes from (east, north)
     ny, nx = depth.shape; yy, xx = np.mgrid[0:ny, 0:nx]
@@ -85,9 +96,9 @@ def travel_time(depth: np.ndarray, water: np.ndarray, T: float, dir_from_deg: fl
     band = proj >= np.quantile(proj[water], 0.97)
     phi = np.where(band & water, -1.0, 1.0)                                       # φ < 0 inside the source band
     masked = np.ma.MaskedArray(phi, mask=~water)
-    t = skfmm.travel_time(masked, speed=c, dx=res_m)
+    t = skfmm.travel_time(masked, speed=c, dx=res_m, order=2)
     t = np.ma.filled(t, 0.0)
-    return np.where(water, t, 0.0)
+    return np.where(water, smooth_over_water(t, water, T_SIGMA), 0.0)
 
 
 def wave_height(depth: np.ndarray, water: np.ndarray, t: np.ndarray, H0: float, T: float, res_m: float) -> np.ndarray:
@@ -124,6 +135,15 @@ def boundary_conditions(step: dict, index: dict, water: np.ndarray, lat0: float,
     return hs, max(3.0, tp), dp
 
 
+def encode_geometry(sdf: np.ndarray, depth: np.ndarray) -> np.ndarray:
+    """Static geometry texture: R,G = signed distance to the shoreline (metres + 8192, 16-bit), B = depth / 2 m (0–510 m), A = 255."""
+    q = np.clip(np.round(sdf + 8192), 0, 65535).astype(np.uint32)
+    rgba = np.zeros(sdf.shape + (4,), np.uint8)
+    rgba[..., 0] = (q >> 8) & 255; rgba[..., 1] = q & 255
+    rgba[..., 2] = np.clip(np.round(depth / 2.0), 0, 255); rgba[..., 3] = 255
+    return rgba
+
+
 def encode(t: np.ndarray, H: np.ndarray, sdf: np.ndarray) -> np.ndarray:
     q = np.clip(np.round(t / T_SCALE), 0, 65535).astype(np.uint32)
     rgba = np.zeros(t.shape + (4,), np.uint8)
@@ -143,6 +163,7 @@ def main() -> int:
     index = json.loads((WW3 / "index.json").read_text())
     OUT.mkdir(parents=True, exist_ok=True)
     np.save(OUT / "sdf.npy", sdf.astype(np.float32)); np.save(OUT / "depth.npy", depth.astype(np.float32))
+    Image.fromarray(encode_geometry(sdf, depth)[::-1], "RGBA").save(OUT / "geometry.png", optimize=True)
     steps = []
     for st in index["steps"]:
         step = json.loads((WW3 / st["file"]).read_text())
@@ -160,7 +181,7 @@ def main() -> int:
     (OUT / "index.json").write_text(json.dumps({
         "cycle": index["cycle"], "generated_at": index.get("generated_at"), "source": "WW3 primary swell partition → eikonal travel time (skfmm) + linear shoaling / friction / γ-breaking on NOAA CRM 3″ (stride 3)",
         "bounds": [lon0, lat0, lon0 + depth.shape[1] * res_deg, lat0 + depth.shape[0] * res_deg], "shape": [depth.shape[0], depth.shape[1]], "res_deg": res_deg,
-        "encoding": {"t_scale_s": T_SCALE, "h_max_m": H_MAX, "land": "t == 0", "rows": "north first"},
+        "encoding": {"t_scale_s": T_SCALE, "h_max_m": H_MAX, "land": "t == 0", "rows": "north first", "geometry": {"file": "geometry.png", "sdf_offset_m": 8192, "depth_scale_m": 2}},
         "steps": steps}, indent=0))
     print(f"wrote {len(steps)} wavefield textures to {OUT}")
     return 0

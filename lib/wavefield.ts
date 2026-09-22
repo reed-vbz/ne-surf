@@ -6,8 +6,8 @@
 import { CACHE_BASE, loadJson } from "./cache";
 
 export interface WavefieldStep { hour: number; valid_time: string; file: string; hs0_m: number; tp_s: number; dir_from_deg: number; omega: number; t_max_s: number }
-export interface WavefieldIndex { cycle: string; bounds: [number, number, number, number]; shape: [number, number]; res_deg: number; encoding: { t_scale_s: number; h_max_m: number }; steps: WavefieldStep[] }
-export interface Wavefield { image: ImageBitmap; bounds: [number, number, number, number]; omega: number; tScale: number; hMax: number; step: WavefieldStep }
+export interface WavefieldIndex { cycle: string; bounds: [number, number, number, number]; shape: [number, number]; res_deg: number; encoding: { t_scale_s: number; h_max_m: number; geometry?: { file: string; sdf_offset_m: number; depth_scale_m: number } }; steps: WavefieldStep[] }
+export interface Wavefield { image: ImageBitmap; geometry: ImageBitmap | null; bounds: [number, number, number, number]; omega: number; tScale: number; hMax: number; step: WavefieldStep }
 
 /** Live PINN API when configured (NEXT_PUBLIC_PINN_API), else the published cache. */
 const BASE = process.env.NEXT_PUBLIC_PINN_API ? process.env.NEXT_PUBLIC_PINN_API.replace(/\/$/, "") : `${CACHE_BASE}/wavefield`;

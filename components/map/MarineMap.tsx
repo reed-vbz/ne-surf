@@ -225,7 +225,7 @@ export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth,
       const out: Layer[] = [];
       const beforeId = "deck-anchor";
       // L1 groundswell: the Rolling Wavefronts shader over the backend wave field; particle trails only while no field is loaded
-      if (WF) out.push(new RollingWavefrontsLayer({ id: "wavefronts", beforeId, image: WF.image, bounds: WF.bounds, _imageCoordinateSystem: "lnglat", time: t, omega: WF.omega, speed: 1, tScale: WF.tScale, hMax: WF.hMax, crestEvery: 3, opacity: 0.95, textureParameters: { minFilter: "nearest", magFilter: "nearest" } }));
+      if (WF) out.push(new RollingWavefrontsLayer({ id: "wavefronts", beforeId, image: WF.image, geometry: WF.geometry, bounds: WF.bounds, _imageCoordinateSystem: "lnglat", time: t, omega: WF.omega, speed: 1, tScale: WF.tScale, hMax: WF.hMax, crestEvery: 3, crestWidth: 0.08, opacity: 1, textureParameters: { minFilter: "nearest", magFilter: "nearest" } }));
       else if (thin.current.swell.length) out.push(new TripsLayer({ id: "groundswell", beforeId, data: thin.current.swell,
         getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => { const c = groundswellColor(tpRef.current); return [c[0], c[1], c[2], 230]; }, updateTriggers: { getColor: tpRef.current },
         widthUnits: "pixels", getWidth: 2, capRounded: true, jointRounded: true, trailLength: TRAIL.swell, currentTime: (t * 4.5) % LOOP.swell, fadeTrail: true, opacity: 0.9 }));

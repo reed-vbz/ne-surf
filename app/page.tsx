@@ -96,7 +96,7 @@ function PageInner() {
   useEffect(() => {
     if (!wfIndex || !mapTime) return; let live = true;
     const st = atTime(wfIndex.steps, mapTime, 120); if (!st) return;   // keep the last field rather than flashing the particle fallback
-    loadWavefieldImage(st.file).then((image) => { if (live && image) setWavefield({ image, bounds: wfIndex.bounds, omega: st.omega, tScale: wfIndex.encoding.t_scale_s, hMax: wfIndex.encoding.h_max_m, step: st }); });
+    Promise.all([loadWavefieldImage(st.file), wfIndex.encoding.geometry ? loadWavefieldImage(wfIndex.encoding.geometry.file) : Promise.resolve(null)]).then(([image, geometry]) => { if (live && image) setWavefield({ image, geometry, bounds: wfIndex.bounds, omega: st.omega, tScale: wfIndex.encoding.t_scale_s, hMax: wfIndex.encoding.h_max_m, step: st }); });
     return () => { live = false; };
   }, [wfIndex, mapTime]);
   const stepLoading = !!mapTime && loadedFor !== mapTime;
