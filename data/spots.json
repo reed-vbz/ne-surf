@@ -63,7 +63,7 @@
         "location": "kept hand value (geocode None km, type None)",
         "facing": "hand value within 15\u00b0 of computed (184)",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 124-248 (was 112-230)"
+        "window": "hand window lies inside open-sea arc 124-248"
       }
     },
     {
@@ -1268,7 +1268,7 @@
         "location": "kept hand value (geocode None km, type None)",
         "facing": "kept hand value 100.0: computed 114 but beach / land fraction 0.68 makes the 1 km mask unreliable",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 47-177 (was 39-165)"
+        "window": "hand window lies inside open-sea arc 47-177"
       }
     },
     {
@@ -1358,8 +1358,8 @@
       "state": "NH",
       "area": "New Hampshire seacoast",
       "location": {
-        "lat": 42.9427,
-        "lon": -70.789
+        "lat": 42.9494,
+        "lon": -70.7846
       },
       "break_type": "beach",
       "facing_deg": 110.0,
@@ -1409,8 +1409,16 @@
       "confidence": "approximate",
       "shadow_sectors": [
         {
+          "from_deg": 48.0,
+          "to_deg": 56.0,
+          "attenuation": 0.45,
+          "by": "Monhegan / midcoast islands",
+          "distance_km": 180,
+          "min_period_s": 12
+        },
+        {
           "from_deg": 154.0,
-          "to_deg": 184.0,
+          "to_deg": 188.0,
           "attenuation": 0.85,
           "by": "Cape Ann",
           "distance_km": 30
@@ -1420,9 +1428,9 @@
         "date": "2026-09-21",
         "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
         "location": "kept hand value (geocode None km, type None)",
-        "facing": "hand value within 15\u00b0 of computed (112)",
+        "facing": "kept hand value 110.0: computed 122 but beach / land fraction 0.71 makes the 1 km mask unreliable",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 66-184 (was 62-170)"
+        "window": "hand window lies inside open-sea arc 48-188"
       }
     },
     {
@@ -1521,8 +1529,8 @@
       "state": "NH",
       "area": "New Hampshire seacoast",
       "location": {
-        "lat": 43.0007,
-        "lon": -70.7432
+        "lat": 42.9804,
+        "lon": -70.7621
       },
       "break_type": "reef",
       "facing_deg": 100.0,
@@ -1532,7 +1540,7 @@
       },
       "swell": {
         "window": {
-          "from_deg": 48.0,
+          "from_deg": 58.0,
           "to_deg": 160.0
         },
         "ideal_deg": 100.0,
@@ -1572,44 +1580,45 @@
       "confidence": "approximate",
       "shadow_sectors": [
         {
-          "from_deg": 48.0,
-          "to_deg": 58.0,
+          "from_deg": 44.0,
+          "to_deg": 50.0,
           "attenuation": 0.45,
           "by": "Monhegan / midcoast islands",
-          "distance_km": 169,
+          "distance_km": 141,
           "min_period_s": 12
         },
         {
-          "from_deg": 96.0,
-          "to_deg": 100.0,
+          "from_deg": 84.0,
+          "to_deg": 88.0,
           "attenuation": 0.6,
           "by": "Isles of Shoals",
-          "distance_km": 10,
+          "distance_km": 12,
           "min_period_s": 12
         },
         {
           "from_deg": 152.0,
-          "to_deg": 160.0,
+          "to_deg": 158.0,
           "attenuation": 0.6,
           "by": "Cape Cod",
-          "distance_km": 114,
+          "distance_km": 112,
           "min_period_s": 12
         },
         {
-          "from_deg": 162.0,
-          "to_deg": 190.0,
+          "from_deg": 160.0,
+          "to_deg": 186.0,
           "attenuation": 0.85,
           "by": "Cape Ann",
-          "distance_km": 36
+          "distance_km": 34,
+          "min_period_s": 12
         }
       ],
       "verification": {
         "date": "2026-09-21",
         "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
         "location": "kept hand value (geocode None km, type None)",
-        "facing": "kept hand value 100.0: computed 122 but reef / land fraction 0.51 makes the 1 km mask unreliable",
+        "facing": "hand value within 15\u00b0 of computed (112)",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 48-190 (was 34-160)"
+        "window": "clipped to open-sea arc 58-186 (was 48-160)"
       }
     },
     {
@@ -1699,7 +1708,7 @@
         "location": "kept hand value (geocode None km, type None)",
         "facing": "hand value within 15\u00b0 of computed (118)",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 54-172 (was 54-180)"
+        "window": "hand window lies inside open-sea arc 54-172"
       }
     },
     {
@@ -1997,7 +2006,7 @@
         "location": "kept hand value (geocode None km, type None)",
         "facing": "hand value within 15\u00b0 of computed (181)",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 140-220 (was 128-220)"
+        "window": "hand window lies inside open-sea arc 140-220"
       }
     },
     {
@@ -2059,10 +2068,10 @@
       "shadow_sectors": [
         {
           "from_deg": 169.0,
-          "to_deg": 185.0,
-          "attenuation": 0.45,
+          "to_deg": 191.0,
+          "attenuation": 0.64,
           "by": "Cape Cod",
-          "distance_km": 167,
+          "distance_km": 163,
           "min_period_s": 12
         }
       ],
@@ -2070,9 +2079,9 @@
         "date": "2026-09-21",
         "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
         "location": "kept hand value (geocode None km, type None)",
-        "facing": "adopted 130: ring-mean 123 and open-arc mid 135 agree (hand 110.0)",
+        "facing": "hand value within 15\u00b0 of computed (123)",
         "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 85-185 (was 77-175)"
+        "window": "hand window lies inside open-sea arc 85-191"
       }
     },
     {
