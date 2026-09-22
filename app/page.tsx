@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import OverviewScreen, { type ScreenModel } from "@/components/screen/OverviewScreen";
 import ForecastDrawer, { type DayRow } from "@/components/screen/ForecastDrawer";
-import PolarRadar from "@/components/screen/PolarRadar";
+import SpectraGraph from "@/components/screen/SpectraGraph";
 import type { WindLabel } from "@/components/screen/WaveAvatar";
 import type { MapBuoy, MapHover, MapSpot } from "@/components/map/MarineMap";
 import { atTime, loadHrrrStep, loadWw3Step, type GridIndex, type HrrrStep, type Ww3Step } from "@/lib/cache";
@@ -34,11 +34,12 @@ function calloutFor(p: ForecastPoint) {
   const lo = Math.max(1, Math.round(p.result.face_ft)), hi = Math.round(p.result.face_ft * 1.3);
   return `${lo}-${hi}ft @ ${d.tp.toFixed(0)}s (${compass(d.dp)})${p.cond.wind ? ` | ${compass(p.cond.wind.dir_from_deg)} Wind` : ""}`;
 }
-/** Swell as a flow field: unit travel vector (WW3 DIRPW is "from") and height as the speed channel. */
-function swellFlow(ww3: { index: GridIndex; step: Ww3Step }): FlowField {
-  const n = ww3.step.fields.hs.length; const u: Array<number | null> = new Array(n), v: Array<number | null> = new Array(n);
-  for (let k = 0; k < n; k++) { const d = ww3.step.fields.dp[k]; if (d == null) { u[k] = null; v[k] = null; continue; } const r = ((d + 180) * Math.PI) / 180; u[k] = Math.sin(r); v[k] = Math.cos(r); }
-  const uf = bilinearField(ww3.index, u), vf = bilinearField(ww3.index, v), hf = bilinearField(ww3.index, ww3.step.fields.hs);
+/** A WW3 partition as a flow field: unit travel vector (directions are "from") and height as the speed channel; falls back field by field. */
+function partitionFlow(ww3: { index: GridIndex; step: Ww3Step }, dirKeys: string[], hsKeys: string[]): FlowField {
+  const F = ww3.step.fields; const dirs = dirKeys.map((k) => F[k]).filter(Boolean), hss = hsKeys.map((k) => F[k]).filter(Boolean);
+  const n = F.hs.length; const u: Array<number | null> = new Array(n), v: Array<number | null> = new Array(n), h: Array<number | null> = new Array(n);
+  for (let k = 0; k < n; k++) { const d = dirs.map((a) => a[k]).find((x) => x != null); const hs = hss.map((a) => a[k]).find((x) => x != null); h[k] = hs ?? null; if (d == null) { u[k] = null; v[k] = null; continue; } const r = ((d + 180) * Math.PI) / 180; u[k] = Math.sin(r); v[k] = Math.cos(r); }
+  const uf = bilinearField(ww3.index, u), vf = bilinearField(ww3.index, v), hf = bilinearField(ww3.index, h);
   return { at: (lat, lon) => { const a = uf(lat, lon), b = vf(lat, lon); if (a === null || b === null) return null; const s = Math.hypot(a, b) || 1; return { u: a / s, v: b / s, speed: hf(lat, lon) ?? 0.5 }; } };
 }
 const mq = () => window.matchMedia("(min-width: 900px)");
@@ -89,7 +90,9 @@ function PageInner() {
   }, [data.ww3, data.hrrr, mapTime, hoverIso]);
   const stepLoading = !!mapTime && loadedFor !== mapTime;
   const wind = useMemo<FlowField | null>(() => data.hrrr && hrrrStep ? windVectorField({ index: data.hrrr.index, step: hrrrStep }) : data.ww3 && ww3Step ? windVectorField({ index: data.ww3.index, step: ww3Step }) : null, [data.hrrr, data.ww3, hrrrStep, ww3Step]);
-  const swell = useMemo<FlowField | null>(() => (data.ww3 && ww3Step ? swellFlow({ index: data.ww3.index, step: ww3Step }) : null), [data.ww3, ww3Step]);
+  // L1: groundswell = the primary WW3 swell partition (whole-spectrum peak where no partition), wind waves = the WW3 wind-sea partition (HRRR wind where absent)
+  const swell = useMemo<FlowField | null>(() => (data.ww3 && ww3Step ? partitionFlow({ index: data.ww3.index, step: ww3Step }, ["swell1_dp", "dp"], ["swell1_hs", "hs"]) : null), [data.ww3, ww3Step]);
+  const windWaves = useMemo<FlowField | null>(() => (data.ww3 && ww3Step && ww3Step.fields.wind_dp ? partitionFlow({ index: data.ww3.index, step: ww3Step }, ["wind_dp"], ["wind_hs"]) : wind), [data.ww3, ww3Step, wind]);
 
   const spots: MapSpot[] = useMemo(() => daily.map(({ spot, best }) => { const b = best!; const d = b.result.dominant; const body = calloutFor(b);
     return { id: spot.id, name: spot.name, state: spot.state, lat: spot.location.lat, lon: spot.location.lon, tier: tierFor(b.result.score), score: b.result.score, face_ft: b.result.face_ft,
@@ -123,8 +126,11 @@ function PageInner() {
     if (peak && peak.a.offshore_kts > 2) sub = peak.h.t - t0 > 1.8e6 ? `Offshore winds peaking at ${hourWord(peak.h.t)}` : `Offshore winds peaking now · ${Math.round(peak.h.windKts!)} kt`;
     else if (now) sub = `Wind ${compass(now.h.windFrom!)} ${Math.round(now.h.windKts!)} kt · ${now.a.label}`;
     return { headline, sub, accent: TIER[tier] };
-  }, [daily, mapTime, day, data.hrrr, data.loading]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [daily, mapTime, day, data.hrrr, data.loading]);
   const radarPoint = focus ? nearest(focus.points, mapTime) : null;
+  const nearestBuoy = useMemo(() => { if (!focus || !data.ww3) return null; const cands = (data.ww3.spots.buoys ?? []).filter((b) => focus.spot.buoys.includes(b.id));
+    const b = (cands.length ? cands : data.ww3.spots.buoys ?? []).map((b) => ({ b, d: Math.hypot(b.position.lat - focus.spot.location.lat, (b.position.lon - focus.spot.location.lon) * 0.73) })).sort((a, c) => a.d - c.d)[0]?.b;
+    return b ? { id: b.id, obs: data.ndbc?.buoys[b.id] ?? null } : null; }, [focus, data.ww3, data.ndbc]);
   const windAt = (h: HourPoint): WindLabel => (focus && h.windKts != null && h.windFrom != null ? assessWind(focus.spot, { speed_kts: h.windKts, dir_from_deg: h.windFrom }).label : "unknown");
 
   const dayRows: DayRow[] = focus ? byDay(focus.points).slice(0, 7).map((d, i) => { const x = parts(d.best.valid_time); const b = d.best; const w = b.cond.wind ? assessWind(focus.spot, b.cond.wind) : null;
@@ -152,7 +158,7 @@ function PageInner() {
       <OverviewScreen m={refMode ? REFERENCE_MODEL : model}
         h={{ onPrev: () => setDayIdx((i) => Math.max(0, i - 1)), onNext: () => setDayIdx((i) => Math.min(days.length - 1, i + 1)), onPickDay: setDayIdx,
              onPill: () => { const id = daily.map((d) => ({ d, p: nearest(d.points, mapTime) })).filter((x) => x.p).sort((a, b) => b.p!.result.score - a.p!.result.score)[0]?.d.spot.id; if (id) { go(id); setDrawerPref(true); } }, onForecast: () => setDrawerPref(!drawerOpen), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
-        map={<MarineMap spots={spots} buoys={buoys} wind={wind} swell={swell} depth={depth} ribbon={ribbon} onHover={setHover} selectedId={selected} onSelect={setSelected} flyTo={flyTo} />}>
+        map={<MarineMap spots={spots} buoys={buoys} wind={windWaves} swell={swell} depth={depth} ribbon={ribbon} onHover={setHover} selectedId={selected} onSelect={setSelected} flyTo={flyTo} />}>
         {/* progress line under the search bar while data or an hour's grids load */}
         {(data.loading || stepLoading) && <div style={{ position: "absolute", left: 0, top: 128, height: 2, width: "100%", background: "#4798b7", zIndex: 7, transformOrigin: "left", animation: "nesurf-progress 1.2s ease-in-out infinite" }} />}
         {/* L4 hover tooltip (React) */}
@@ -164,10 +170,10 @@ function PageInner() {
               <div style={{ fontSize: 10, color: "#e8eef2" }}>Wind {hover.spot.windKts !== null ? <><b>{Math.round(hover.spot.windKts)} kt</b> from {compass(hover.spot.windFrom!)}</> : "n/a"}{hover.ribbonAngle !== null ? <> · {Math.round(hover.ribbonAngle)}° off the beach · <span style={{ color: WIND_ALIGN[hover.ribbonTier as keyof typeof WIND_ALIGN] }}>{hover.ribbonTier}</span></> : null}</div>
               <div style={{ fontSize: 10, color: "#b8c7d1" }}>Score {hover.spot.score} · {hover.spot.tier === "green" ? "Green" : hover.spot.tier === "moderate" ? "Moderate" : "Poor"}</div></>}
           </div>)}
-        {/* polar swell radar, bottom-left above the legends (hidden in the pixel-diff fixture like the drawer) */}
+        {/* buoy swell spectra, bottom-left above the legends (hidden in the pixel-diff fixture like the drawer) */}
         {!refMode && focus && (
           <div style={{ position: "absolute", left: 12, bottom: 160, zIndex: 4 }}>
-            <PolarRadar trains={radarPoint?.cond.trains ?? []} facingDeg={focus.spot.facing_deg} window={focus.spot.swell.window} title="Swell radar" sub={`${shortName(focus.spot.name)}${mapTime ? ` · ${hourWord(Date.parse(mapTime))}` : ""}`} />
+            <SpectraGraph buoy={nearestBuoy} trains={radarPoint?.cond.trains ?? []} spotName={shortName(focus.spot.name)} hourLabel={mapTime ? hourWord(Date.parse(mapTime)) : ""} />
           </div>)}
         {!refMode && <ForecastDrawer open={drawerOpen} onClose={() => setDrawerPref(false)} spotName={focus?.spot.name ?? "—"} tier={focus ? tierFor(focus.best!.result.score) : "poor"} dayLabel={days[dayIdx]?.label ?? ""}
           hours={hours} tide={tide} activeHour={hoverHour} onHoverHour={setHoverHour} days={dayRows} onPickDay={setDayIdx} windAt={windAt} defaultHour={mapTime ? Number(new Intl.DateTimeFormat("en-US", { timeZone: NY, hour: "numeric", hour12: false }).format(new Date(mapTime))) % 24 : null} />}

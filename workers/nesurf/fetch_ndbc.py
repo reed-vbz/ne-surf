@@ -14,6 +14,7 @@ Sources (free, public, verified 2026-09-21):
       "MM" = missing. Times are UTC.
 
   https://www.ndbc.noaa.gov/data/realtime2/<ID>.spec
+  https://www.ndbc.noaa.gov/data/realtime2/<ID>.data_spec   (raw spectral density m²/Hz per frequency bin → `spectrum`)
       Spectral wave summary, same layout:
         #YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD
       SwD / WWD are 16-point compass letters (e.g. ESE); converted to degrees here.
@@ -131,8 +132,22 @@ def fetch_text(session: requests.Session, url: str) -> str | None:
     return r.text
 
 
+def parse_data_spec(text: str) -> dict[str, Any] | None:
+    """Newest row of a realtime2 .data_spec file: 'YY MM DD hh mm sep_freq  spec_1 (freq_1) spec_2 (freq_2) …' → {t, freqs, density}."""
+    for line in text.splitlines():
+        if not line or line.startswith("#"): continue
+        parts = line.replace("(", " ").replace(")", " ").split()
+        if len(parts) < 8: continue
+        t = datetime(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), tzinfo=timezone.utc)
+        vals = [float(x) for x in parts[6:]]
+        density, freqs = vals[0::2], vals[1::2]
+        n = min(len(density), len(freqs))
+        return {"t": t, "freqs": freqs[:n], "density": density[:n]}
+    return None
+
+
 def build_buoy(met_text: str | None, spec_text: str | None, now: datetime,
-               window: timedelta, history: timedelta, wave_stale: timedelta) -> dict[str, Any]:
+               window: timedelta, history: timedelta, wave_stale: timedelta, data_spec_text: str | None = None) -> dict[str, Any]:
     if met_text is None:
         return {"status": "offline"}
     met = parse_ndbc_table(met_text)
@@ -158,6 +173,12 @@ def build_buoy(met_text: str | None, spec_text: str | None, now: datetime,
             st = s.get("STEEPNESS")
             rec["steepness"] = st if isinstance(st, str) and st.upper() != "N/A" else None
 
+    rec["spectrum"] = None
+    if data_spec_text is not None:
+        ds = parse_data_spec(data_spec_text)
+        if ds and ds["t"] >= newest - timedelta(hours=3):
+            rec["spectrum"] = {"time": iso(ds["t"]), "freqs_hz": ds["freqs"], "density_m2_hz": ds["density"], "units": "m²/Hz per frequency bin"}
+
     cutoff = newest - history
     rec["history"] = [
         {"t": iso(r["t"]), "wvht_m": r.get("WVHT"), "dpd_s": r.get("DPD"), "mwd_deg": r.get("MWD")}
@@ -175,8 +196,9 @@ def run(buoys: list[str], out_path: Path, pause: float, window_min: int, history
     for k, bid in enumerate(buoys):
         met = fetch_text(session, f"{REALTIME2}/{bid}.txt")
         spec = fetch_text(session, f"{REALTIME2}/{bid}.spec") if met is not None else None
+        dspec = fetch_text(session, f"{REALTIME2}/{bid}.data_spec") if met is not None else None
         try:
-            rec = build_buoy(met, spec, now, window, history, wave_stale)
+            rec = build_buoy(met, spec, now, window, history, wave_stale, dspec)
         except ValueError as e:
             log.warning("%s: %s", bid, e)
             rec = {"status": "offline", "note": str(e)}

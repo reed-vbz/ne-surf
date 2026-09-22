@@ -42,6 +42,8 @@ export interface NdbcBuoy {
   wspd_ms?: number | null; wdir_deg?: number | null; gst_ms?: number | null; wtmp_c?: number | null;
   swell?: { hs_m: number | null; tp_s: number | null; dir_deg: number | null };
   windsea?: { hs_m: number | null; tp_s: number | null; dir_deg: number | null };
+  /** raw NDBC spectral density (realtime2 .data_spec), newest hour */
+  spectrum?: { time: string; freqs_hz: number[]; density_m2_hz: number[] } | null;
 }
 export interface NdbcLatest { generated_at: string; buoys: Record<string, NdbcBuoy> }
 

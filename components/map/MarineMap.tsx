@@ -3,11 +3,9 @@
  * The map engine: 5-layer permanent marine architecture on MapLibre GL + deck.gl (interleaved) + self-hosted MVT.
  * All five layers render concurrently; there are no user toggles.
  *
- *   L0 ocean floor      3D. MapLibre terrain from Terrain-RGB DEM tiles baked from the same CRM grid (public/tiles/nh-dem,
- *                       bathymetry negative, land positive, exaggerated ×6) with a hillshade, and the isobath vector `fill`
- *                       (`interpolate` on min_depth: 0 m #00E5FF → 20 m #0099CC → 100 m+ #0B192C) draped on it. `fill-extrusion`
- *                       cannot extrude below zero in MapLibre/Mapbox, so the DEM is what reveals canyons and sandbars.
- *                       Camera defaults to pitch 60 / bearing −15 (isometric).
+ *   L0 ocean floor      2D top-down (pitch 0, bearing 0, rotation locked — Reed 2026-09-22: the isometric view was cluttered).
+ *                       Isobath vector `fill` (`interpolate` on min_depth: 0 m #00E5FF → 20 m #0099CC → 100 m+ #0B192C) with a
+ *                       hillshade from the CRM Terrain-RGB DEM tiles (public/tiles/nh-dem) for flat relief shading.
  *   L1 swell + wind     deck.gl TripsLayer comets (wind cyan, swell energy-coloured) + PathLayer refraction crests, at sea level
  *                       above the 3D floor. Shoaling: swell comet clocks run on travel time from the dispersion-relation phase
  *                       speed, so heads slow over the shallow zones; crests bend by Snell ray tracing.
@@ -32,10 +30,10 @@ import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import type { Layer } from "@deck.gl/core";
 import { useEffect, useRef, useState } from "react";
-import { hexToRgb, ramp, ribbonColor, swellEnergy, SWELL_STOPS, TIER, type Tier } from "@/lib/colors";
-import { REGION_BBOX, REGION_ID, depthAt, inGrid, tileAround, type DepthGrid, type RibbonFeature } from "@/lib/region";
+import { hexToRgb, ramp, ribbonColor, TIER, type Tier } from "@/lib/colors";
+import { REGION_BBOX, REGION_ID, depthAt, inGrid, type DepthGrid, type RibbonFeature } from "@/lib/region";
 import { isLand } from "@/lib/overlays";
-import { crestsAt, phaseSpeed, traceRays, type RayField } from "@/lib/refraction";
+import { phaseSpeed } from "@/lib/refraction";
 import type { FlowField, Streamline } from "@/lib/streamlines";
 import { integrateStreamlines } from "@/lib/streamlines";
 
@@ -49,9 +47,7 @@ interface Props {
 
 const B = REGION_BBOX;
 const BOUNDS: LngLatBoundsLike = [[B.west, B.south], [B.east, B.north]];
-const FIT = { padding: { top: 210, bottom: 150, left: 8, right: 8 }, bearing: -15 };
-/** isometric default: 60° on wide screens, 45° on phones so the whole region still fits above the bottom cards */
-const pitchFor = (w: number) => (w >= 900 ? 60 : 45);
+const FIT = { padding: { top: 210, bottom: 150, left: 8, right: 8 } };
 const LAND = "#1a2a33";
 const STYLE: StyleSpecification = {
   version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
@@ -60,7 +56,7 @@ const STYLE: StyleSpecification = {
     region: { type: "vector", tiles: [`${typeof window !== "undefined" ? window.location.origin : ""}/tiles/${REGION_ID}/{z}/{x}/{y}.pbf`], minzoom: 8, maxzoom: 13, bounds: [B.west, B.south, B.east, B.north] },
     dem: { type: "raster-dem", tiles: [`${typeof window !== "undefined" ? window.location.origin : ""}/tiles/${REGION_ID}-dem/{z}/{x}/{y}.png`], tileSize: 256, encoding: "mapbox", minzoom: 8, maxzoom: 13, bounds: [B.west, B.south, B.east, B.north] },
   },
-  terrain: { source: "dem", exaggeration: 6 },
+
   layers: [
     { id: "bg", type: "background", paint: { "background-color": LAND } },
     { id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.3, "raster-brightness-max": 0.75 } },
@@ -82,10 +78,10 @@ setWorkerUrl("/vendor/maplibre/maplibre-gl-worker.mjs");
 const pin = (tier: Tier, state: string) => `<svg width="22" height="28" viewBox="0 0 22 28"><path d="M11 0 C5 0 0 4.8 0 10.8 C0 18.5 11 28 11 28 C11 28 22 18.5 22 10.8 C22 4.8 17 0 11 0 Z" fill="${TIER[tier]}" stroke="#0e2029" stroke-width="1.5"/><text x="11" y="14.5" text-anchor="middle" font-family="Barlow, sans-serif" font-size="8" font-weight="800" fill="#0e2029">${state}</text></svg>`;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 const FLOW_BBOX = { south: B.south - 0.15, north: B.north + 0.15, west: B.west - 0.15, east: B.east + 0.15 };   // physics runs a little past the tile bbox so comets never stop on a hard line
-const LOOP = { wind: 48, swell: 44 };   // points between comet heads on one streamline
-const TRAIL = { wind: 12, swell: 14 };  // lit points behind each head (¼–⅓ of the loop: comets read as motion, not lines)
-const CREST_MAX_DEPTH = 15;             // metres: crest lines only where the swell is visibly refracting
-const cometColor = (hsM: number, tpS: number) => ramp(SWELL_STOPS, 0.35 + 0.65 * swellEnergy(hsM * 3.28084, tpS));   // ramp low end lifted: a 1 px mark must stay visible on the dark base
+const LOOP = { wind: 30, swell: 52 };   // points between particle heads on one streamline
+const TRAIL = { wind: 5, swell: 14 };   // wind waves: short fast dashes · groundswell: longer smooth trails
+const GS_STOPS: Array<[number, string]> = [[6, "#7FF6FF"], [9, "#00E5FF"], [12, "#2F8CFF"], [16, "#3B4CFF"]];   // groundswell trail colour by period: cyan (short) → blue (long)
+const groundswellColor = (tpS: number) => ramp(GS_STOPS, Math.max(6, Math.min(16, tpS)));
 interface Comet extends Streamline { shift: number; times: number[] }
 /**
  * Emit each streamline in LOOP-spaced copies: as currentTime wraps, copy j's head lands exactly where copy j+1's was → seamless
@@ -131,7 +127,6 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
   const swellComets = useRef<Comet[]>([]);
   const thin = useRef({ key: -1, wind: [] as Comet[], swell: [] as Comet[] });
   const tpRef = useRef(9);
-  const rayFields = useRef<Array<{ id: string; field: RayField; tCut: number }>>([]);
   const raf = useRef(0);
   const t0 = useRef(0);
   const propsRef = useRef({ spots, buoys, ribbon, wind, selectedId, onHover, onSelect });
@@ -139,14 +134,14 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
 
   useEffect(() => {
     if (!el.current || map.current) return;
-    const m = new MLMap({ container: el.current, style: STYLE, bounds: BOUNDS, fitBoundsOptions: FIT, pitch: pitchFor(el.current.clientWidth), bearing: -15, maxPitch: 72, minZoom: 7.5, maxZoom: 15, attributionControl: { compact: true } });
+    const m = new MLMap({ container: el.current, style: STYLE, bounds: BOUNDS, fitBoundsOptions: FIT, pitch: 0, bearing: 0, maxPitch: 0, dragRotate: false, pitchWithRotate: false, touchPitch: false, minZoom: 7.5, maxZoom: 15, attributionControl: { compact: true } });
     t0.current = performance.now();
     m.on("load", () => {
       // deck.gl 9.4's interleaved integration reads map.transform; MapLibre 6 no longer exposes it on Map
       const mm = m as unknown as { transform?: unknown; _camera?: { transform?: unknown }; painter?: { transform?: unknown } };
       if (mm.transform === undefined) Object.defineProperty(m, "transform", { get: () => mm._camera?.transform ?? mm.painter?.transform, configurable: true });
       overlay.current = new MapboxOverlay({ interleaved: true, layers: [] }); m.addControl(overlay.current); setReady(true);
-      m.fitBounds(BOUNDS, { ...FIT, pitch: pitchFor(m.getContainer().clientWidth), duration: 0 });   // re-fit now that the pitched transform exists
+      m.touchZoomRotate.disableRotation();
     });
     m.on("click", () => propsRef.current.onSelect(null));
     map.current = m;
@@ -162,17 +157,12 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
     if (!depth) return;
     const isOcean = (lat: number, lon: number) => (inGrid(depth, lat, lon) ? depthAt(depth, lat, lon) > 0 : !isLand(lat, lon));
     const tp = spots.find((s) => s.tp !== null)?.tp ?? 9; tpRef.current = tp;
-    windLines.current = wind ? integrateStreamlines(wind, FLOW_BBOX, isOcean, { seedsAcross: 44, stepM: 200, maxSteps: 70, seed: 3 }) : [];
-    swellLines.current = swell ? integrateStreamlines(refractSwell(swell, depth, tp), FLOW_BBOX, isOcean, { seedsAcross: 30, stepM: 220, maxSteps: 60, seed: 11 }) : [];
+    windLines.current = wind ? integrateStreamlines(wind, FLOW_BBOX, isOcean, { seedsAcross: 40, stepM: 160, maxSteps: 40, seed: 3 }) : [];
+    swellLines.current = swell ? integrateStreamlines(refractSwell(swell, depth, tp), FLOW_BBOX, isOcean, { seedsAcross: 28, stepM: 220, maxSteps: 80, seed: 11 }) : [];
     windComets.current = comets(windLines.current, LOOP.wind, TRAIL.wind); thin.current.key = -1;
     const cDeep = phaseSpeed(2000, tp);
     swellComets.current = comets(swellLines.current, LOOP.swell, TRAIL.swell, (lon, lat) => { if (!inGrid(depth, lat, lon)) return 1; const h = depthAt(depth, lat, lon); return h <= 0 ? 1 : Math.min(3, cDeep / phaseSpeed(h, tp)); });
-    rayFields.current = spots.filter((s) => s.dp !== null && s.tp !== null && s.hs_m > 0.3).map((s) => {
-      const field = traceRays(tileAround(depth, s.lat, s.lon), s.lat, s.lon, s.dp!, s.tp!, s.hs_m, { rays: 25, spanM: 5000, startKm: 7, stepM: 50 });
-      let tCut = Infinity;
-      field.depths.forEach((hs, r) => { const k = hs.findIndex((h) => h <= CREST_MAX_DEPTH); if (k > 0) tCut = Math.min(tCut, field.times[r][k]); });
-      return { id: s.id, field, tCut: Number.isFinite(tCut) ? tCut : 0 };
-    });
+
   }, [wind, swell, spots, depth]);
 
   // Label collision: the selected break first, then by score; a label (with its callout) is shown only when its screen
@@ -226,26 +216,18 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
     const tick = () => {
       raf.current = requestAnimationFrame(tick);
       const ov = overlay.current; if (!ov) return;
-      const { ribbon: R, wind: Wf, spots: S, buoys: Bu, selectedId: sel, onHover: hov } = propsRef.current;
+      const { ribbon: R, wind: Wf, spots: S, buoys: Bu, onHover: hov } = propsRef.current;
       const t = (performance.now() - t0.current) / 1000;
       const keep = Math.round(Math.min(1, Math.pow(3, (map.current?.getZoom() ?? 12) - 11.5)) * 40) / 40;   // density follows zoom
       if (keep !== thin.current.key) thin.current = { key: keep, wind: windComets.current.filter((c) => c.rank < keep), swell: swellComets.current.filter((c) => c.rank < keep) };
       const out: Layer[] = [];
       const beforeId = "deck-anchor";
-      if (thin.current.wind.length) out.push(new TripsLayer({ id: "wind-flow", beforeId, data: thin.current.wind,
-        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => [100, 213, 204, 190], widthUnits: "pixels", getWidth: 1.3, capRounded: true, jointRounded: true,
-        trailLength: TRAIL.wind, currentTime: (t * 9) % LOOP.wind, fadeTrail: true, opacity: 0.8 }));
-      if (thin.current.swell.length) out.push(new TripsLayer({ id: "swell-flow", beforeId, data: thin.current.swell,
-        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: (d: Comet) => { const c = cometColor(d.speed, tpRef.current); return [c[0], c[1], c[2], 235]; }, updateTriggers: { getColor: tpRef.current },
-        widthUnits: "pixels", getWidth: 2, capRounded: true, jointRounded: true, trailLength: TRAIL.swell, currentTime: (t * 5.5) % LOOP.swell, fadeTrail: true, opacity: 0.85 }));
-      { const every = Math.max(12, Math.min(60, 250 / (1.56 * tpRef.current))), phase = (t % (every / 10)) * 10;   // ≈250 m between crests in deep water
-        const paths: Array<{ path: Array<[number, number]>; color: number[]; w: number }> = [];
-        for (const rf of rayFields.current) { const dim = sel && sel !== rf.id;
-          for (const cr of crestsAt(rf.field, phase, every, CREST_MAX_DEPTH)) {
-            const near = Math.max(0, Math.min(1, (cr.t - rf.tCut) / Math.max(1, rf.field.tMax - rf.tCut)));
-            const a = 185 * Math.min(1, near / 0.25) * (0.4 + 0.6 * near) * (dim ? 0.35 : 1);
-            paths.push({ path: cr.points, color: [205, 242, 255, Math.round(a)], w: 1.1 + 1.1 * near }); } }
-        if (paths.length) out.push(new PathLayer({ id: "crests", beforeId, data: paths, getPath: (d) => d.path, getColor: (d) => d.color as [number, number, number, number], getWidth: (d) => d.w, widthUnits: "pixels", capRounded: true, jointRounded: true })); }
+      if (thin.current.swell.length) out.push(new TripsLayer({ id: "groundswell", beforeId, data: thin.current.swell,
+        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => { const c = groundswellColor(tpRef.current); return [c[0], c[1], c[2], 230]; }, updateTriggers: { getColor: tpRef.current },
+        widthUnits: "pixels", getWidth: 2, capRounded: true, jointRounded: true, trailLength: TRAIL.swell, currentTime: (t * 4.5) % LOOP.swell, fadeTrail: true, opacity: 0.9 }));
+      if (thin.current.wind.length) out.push(new TripsLayer({ id: "wind-waves", beforeId, data: thin.current.wind,
+        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => [255, 255, 255, 150], widthUnits: "pixels", getWidth: 1.1, capRounded: true,
+        trailLength: TRAIL.wind, currentTime: (t * 12) % LOOP.wind, fadeTrail: true, opacity: 0.55 }));
       if (R.length) out.push(new PathLayer({ id: "ribbon", beforeId, data: R, getPath: (f: RibbonFeature) => f.geometry.coordinates,
         getColor: (f: RibbonFeature) => { const w = Wf?.at(f.properties.m[1], f.properties.m[0]); if (!w) return [180, 180, 180, 120]; const c = ribbonColor((Math.atan2(w.u, w.v) * 180) / Math.PI, w.speed * 1.944, f.properties.n); return [c[0], c[1], c[2], 235]; },
         updateTriggers: { getColor: [Wf] }, widthUnits: "pixels", getWidth: 4, widthMinPixels: 3, capRounded: true }));
