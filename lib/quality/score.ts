@@ -26,7 +26,8 @@ export function scoreSpot(spot: Spot, c: Conditions): ScoreBreakdown {
   const swell = summarizeSwell(spot, c.trains);
   const tp = swell.dominant?.train.tp ?? 0;
   const size = sizeScore(spot, swell.usable_hs_m);
-  const period = periodScore(spot, tp);
+  const totalEnergy = swell.usable_hs_m ** 2;
+  const period = totalEnergy > 0 ? swell.assessments.reduce((s, a) => s + a.usable_energy * periodScore(spot, a.train.tp), 0) / totalEnergy : 0;
   const wind = assessWind(spot, c.wind);
   const tide = assessTide(spot, c.tide);
 
@@ -36,8 +37,16 @@ export function scoreSpot(spot: Spot, c: Conditions): ScoreBreakdown {
   if (tide.blocked) score = Math.min(score, 15);
   score = Math.round(Math.max(0, Math.min(100, score)));
 
-  const face_m = ns.face_m;
+  // Apply each period-dependent transfer to its share of variance. Using total Hs in
+  // each coefficient keeps this invariant when one system is split into equal-period partitions.
+  const face_m = totalEnergy > 0 ? Math.sqrt(swell.assessments.reduce((sum, a) => {
+    const transfer = nearshore(swell.usable_hs_m, a.train.tp, c.bathy ?? null, spot.swell.shoaling_factor ?? 1);
+    return sum + a.usable_energy / totalEnergy * transfer.face_m ** 2;
+  }, 0)) : 0;
   const reasons: string[] = [];
+  if (c.wave_status === "missing") { score = 0; reasons.push("Wave data unavailable"); }
+  if (!c.wind) reasons.push("Wind unavailable; quality uncertain");
+  if (!c.tide) reasons.push("Tide unavailable; quality uncertain");
   if (ns.breaker === "spilling" && ns.xi !== null && ns.xi < 0.2) reasons.push("Gentle bottom slope: soft, spilling waves");
   if (ns.breaker === "surging") reasons.push("Steep bottom: surging, no wall");
   if (swell.usable_hs_m < spot.swell.min_height_m) reasons.push("Too small for this spot");
@@ -53,7 +62,7 @@ export function scoreSpot(spot: Spot, c: Conditions): ScoreBreakdown {
   if (swell.usable_hs_m > spot.swell.max_height_m) reasons.push("Maxed out");
 
   return {
-    score, band: bandFor(score), color: colorFor(score),
+    available: c.wave_status !== "missing", score, band: bandFor(score), color: colorFor(score),
     face_m, face_ft: face_m * 3.28084,
     components: { swell_angle: swell.angle_score, swell_size: size, swell_period: period, wind: wind.score, tide: tide.score },
     dominant: swell.dominant?.train ?? null,

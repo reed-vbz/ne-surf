@@ -31,8 +31,8 @@ export default function PolarRadar({ trains, facingDeg, window: win, title, sub 
   const [fx, fy] = pt(facingDeg, R + 5);
   return (
     <div aria-label="Swell radar" style={{ display: "flex", flexDirection: "column", gap: 2, height: "100%", fontFamily: "'Barlow', system-ui, sans-serif", color: "#e8eef2" }}>
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>{title}</div>
-      <div style={{ fontSize: 8, color: "#9fb1bc", letterSpacing: ".06em", textTransform: "uppercase" }}>{sub}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>{title}</div>
+      <div style={{ fontSize: 11, color: "#9fb1bc", letterSpacing: ".06em", textTransform: "uppercase" }}>{sub}</div>
       <svg viewBox="0 0 200 200" style={{ display: "block", flex: 1, minHeight: 0, width: "100%" }}>
         <defs>
           <filter id="radar-blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4" /></filter>
@@ -52,7 +52,7 @@ export default function PolarRadar({ trains, facingDeg, window: win, title, sub 
             <circle cx={b.bloom.x} cy={b.bloom.y} r={b.bloom.radius} fill={`url(#bloom-${b.key})`} />
           </g>) : (
           <g key={b.key} filter="url(#radar-blur)">{b.dots.map((d, k) => <circle key={k} cx={d.x} cy={d.y} r={d.rr} fill={b.col} fillOpacity={0.85} />)}</g>))}
-        {trains.length === 0 && <text x={C} y={C + 3} fontSize={8} fill="#9fb1bc" textAnchor="middle">no swell partitions</text>}
+        {trains.length === 0 && <text x={C} y={C + 3} fontSize={10} fill="#9fb1bc" textAnchor="middle">no swell partitions</text>}
       </svg>
     </div>
   );

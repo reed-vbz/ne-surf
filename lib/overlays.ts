@@ -108,7 +108,7 @@ export function oceanTintDataUrl(): string {
 
 export interface VectorField { at(lat: number, lon: number): { u: number; v: number; speed: number } | null; bounds: { lat0: number; lat1: number; lon0: number; lon1: number } }
 
-/** Bilinear 10 m wind (m/s, toward) on the HRRR grid, or the GFS wind carried in the wave file. Null over land. */
+/** Bilinear 10 m wind (m/s, toward) on HRRR or GFS, including shoreline and land samples. */
 export function windVectorField(src: { index: GridIndex; step: HrrrStep } | { index: GridIndex; step: Ww3Step }): VectorField {
   const { index } = src; const [nlat, nlon] = index.shape;
   let u: Flat, v: Flat;
@@ -133,7 +133,7 @@ export function windVectorField(src: { index: GridIndex; step: HrrrStep } | { in
   };
   return {
     at(lat, lon) {
-      if (lat < lat0 || lat > lat1 || lon < lon0 || lon > lon1 || isLand(lat, lon)) return null;
+      if (lat < lat0 || lat > lat1 || lon < lon0 || lon > lon1) return null;
       const fi = ((lat - lat0) / (lat1 - lat0)) * (nlat - 1), fj = ((lon - lon0) / (lon1 - lon0)) * (nlon - 1);
       const uu = bil(u, fi, fj), vv = bil(v, fi, fj); if (uu === null || vv === null) return null;
       const s = Math.hypot(uu, vv) || 1e-6; return { u: uu / s, v: vv / s, speed: s };

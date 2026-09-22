@@ -35,5 +35,7 @@ def pinn_loss(pred: torch.Tensor, target: torch.Tensor | None, x: torch.Tensor, 
     terms["shoaling"] = lam_soft * (F.relu(shoal - hs) * deep).pow(2).mean()
     terms["breaking"] = lam_soft * (F.relu(hs - P.GAMMA * depth.clamp_min(0.05)) * water).pow(2).mean()
     terms["land"] = lam_soft * ((hs * (1 - water)).pow(2).mean() + (k * (1 - water)).pow(2).mean())
-    total = sum(torch.nan_to_num(v, nan=0.0, posinf=1e3, neginf=1e3) for v in terms.values())
+    total = sum(terms.values())
+    if not bool(torch.isfinite(total)):
+        raise FloatingPointError("Nonfinite physics loss; refusing to train a misleading checkpoint")
     return total, {n: float(v.detach()) for n, v in terms.items()}

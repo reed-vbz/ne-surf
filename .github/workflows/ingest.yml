@@ -1,9 +1,10 @@
 name: ingest-noaa
 # GFS-Wave cycles are 00/06/12/18 z and finish posting ~4-5 h later; HRRR is hourly.
-# Writes public/cache to the orphan `data` branch (one commit, force-pushed) so main's history never grows.
+# Retains immutable data commits and atomically advances a small manifest on the data branch.
 on:
   schedule:
     - cron: "20 5,11,17,23 * * *"
+    - cron: "50 * * * *" # inexpensive buoy-only refresh between model publications
   workflow_dispatch:
 concurrency: { group: ingest, cancel-in-progress: false }
 permissions: { contents: write }
@@ -15,25 +16,43 @@ jobs:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - run: cd workers && uv venv .venv && uv pip install -p .venv/bin/python -e .
-      - name: restore calibration history from the data branch
+      - uses: actions/checkout@v5
+        with:
+          ref: data
+          path: data-publish
+          fetch-depth: 1
+      - name: restore the last complete publication
         run: |
-          mkdir -p public/cache/calibration
-          curl -sf "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/data/public/cache/calibration/history.jsonl" -o public/cache/calibration/history.jsonl || true
-      - run: cd workers && .venv/bin/python -m nesurf.fetch_ww3   --source aws --hours 0:168:3
-      - run: cd workers && .venv/bin/python -m nesurf.fetch_hrrr  --res 0.05
+          mkdir -p public/cache
+          cp -R data-publish/public/cache/. public/cache/
+      - if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 5,11,17,23 * * *'
+        run: cd workers && .venv/bin/python -m nesurf.fetch_ww3   --source aws --hours 0:168:3
+      - if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 5,11,17,23 * * *'
+        run: cd workers && .venv/bin/python -m nesurf.fetch_hrrr  --res 0.05
       - run: cd workers && .venv/bin/python -m nesurf.fetch_ndbc
-      - run: cd workers && .venv/bin/python -m nesurf.fetch_tides
+      - if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 5,11,17,23 * * *'
+        run: cd workers && .venv/bin/python -m nesurf.fetch_tides
       - run: cd workers && .venv/bin/python -m nesurf.calibrate
-      - run: cd workers && .venv/bin/python -m nesurf.wavefield
-      - name: publish cache to the data branch
+      - if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 5,11,17,23 * * *'
+        run: cd workers && .venv/bin/python -m nesurf.wavefield
+      - name: verify cache integrity
+        run: cd workers && .venv/bin/python -m unittest discover -s tests && .venv/bin/python -m nesurf.validate_cache
+      - name: publish immutable cache and manifest
         run: |
-          set -e
-          tmp=$(mktemp -d)
-          mkdir -p "$tmp/public" && cp -R public/cache "$tmp/public/cache"
-          cd "$tmp"
-          git init -q -b data
+          set -euo pipefail
+          cp -R public/cache/. data-publish/public/cache/
+          cd data-publish
           git config user.name "ne-surf-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add -A
-          git commit -qm "cache: noaa $(date -u +%FT%H:%MZ)"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" data
+          git add public/cache
+          git commit --allow-empty -qm "cache: noaa $(date -u +%FT%H:%MZ)"
+          export CACHE_REVISION=$(git rev-parse HEAD)
+          python - <<'PYCODE'
+          import os, json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          Path("public/cache/manifest.json").write_text(json.dumps({"revision": os.environ["CACHE_REVISION"], "generated_at": datetime.now(timezone.utc).isoformat()}))
+          PYCODE
+          git add public/cache/manifest.json
+          git commit -qm "cache: publish immutable manifest"
+          git push origin HEAD:data

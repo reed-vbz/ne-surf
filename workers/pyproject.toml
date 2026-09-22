@@ -15,6 +15,7 @@ dependencies = [
     "pillow>=10",
     "scikit-fmm>=2024.05",
     "mapbox-vector-tile>=2.0",
+    "shapely>=2.0",
 ]
 
 [project.optional-dependencies]

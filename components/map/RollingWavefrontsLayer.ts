@@ -4,7 +4,7 @@
  *
  * Textures
  *   bitmapTexture  per WW3 step: R,G = swell travel time t(x) (16-bit, s × tScale) from the eikonal solution over the CRM
- *                  bathymetry (second-order fast marching on a Gaussian-smoothed depth field), B = H_s (m / hMax), t = 0 = land
+ *                  bathymetry (metric fast marching on a Gaussian-smoothed depth field), B = H_s (m / hMax), t = 0 = land
  *   geomTexture    static: R,G = signed distance to the shoreline (m + 8192, 16-bit), B = depth (m / 2)
  * Both are 8-bit PNGs carrying 16-bit data in two channels, so hardware LINEAR filtering would corrupt the values; the
  * shader therefore reconstructs each field with a cubic B-spline over 16 texels (smoother than gl.LINEAR, C² continuous),
@@ -14,8 +14,8 @@
  *          so thin crests never alias; white core → electric cyan edges; troughs fully transparent; additive blending.
  * Physics  local phase speed c = √(g·max(h, 0.5)) from the smoothed depth narrows the crest profile in the shallows
  *          (wavelength shrinks as c falls) and the crest intensity tapers to zero over the last 50 m of water (signed
- *          distance) — breaking-wave decay before the coastal ribbon. Land texels are discarded and the layer draws
- *          under MapLibre's land layer: zero bleed twice over.
+ *          distance) — breaking-wave decay before the coastal ribbon. Land texels are discarded and the layer is also clipped
+ *          by the authoritative ocean polygon through MaskExtension.
  */
 import { BitmapLayer, type BitmapLayerProps } from "@deck.gl/layers";
 import type { Texture } from "@luma.gl/core";
@@ -103,7 +103,7 @@ void main(void) {
     vec2 gp = uv * vec2(gsize) - 0.5; ivec2 g0 = ivec2(floor(gp)); vec2 gf = fract(gp); ivec2 gmx = gsize - 1;
     vec4 gx = bspline(gf.x), gy = bspline(gf.y); vec2 acc = vec2(0.0);
     for (int j = -1; j <= 2; j++) for (int i = -1; i <= 2; i++) acc += gx[i + 1] * gy[j + 1] * geomTexel(clamp(g0 + ivec2(i, j), ivec2(0), gmx));
-    sdf = acc.x; depth = acc.y;
+    sdf = geomTexel(clamp(ivec2(uv * vec2(gsize)), ivec2(0), gmx)).x; depth = acc.y;
     if (sdf <= 0.0) discard;
   }
 
@@ -114,16 +114,17 @@ void main(void) {
   float c = sqrt(G * max(depth, 0.5)), cDeep = sqrt(G * 60.0);
   float w = rolling.crestWidth * mix(0.6, 1.0, clamp(c / cDeep, 0.0, 1.0));
   w = max(w, fwidth(phase) * 0.8);
-  float s = sin(phase);
+  // One crest per 2π; suppress frequencies that exceed the pixel Nyquist limit.
+  float s = 2.0 * sin(0.5 * phase);
   float crest = exp(-(s * s) / (w * w));                                // I = exp(−(sin φ / w)²): the crisp white core
   float halo = exp(-(s * s) / (16.0 * w * w)) * 0.45;                   // 4× wider cyan halo so the line reads at every zoom
 
-  float amp = clamp(hs / 1.0, 0.35, 1.0);                               // small swell → dimmer crests
+  float amp = smoothstep(0.02, 0.12, hs) * mix(0.45, 1.0, clamp(hs / 1.5, 0.0, 1.0)) * (1.0 - smoothstep(1.5, PI, fwidth(phase)));                               // small swell → dimmer crests
   float shoreFade = smoothstep(0.0, 50.0, sdf) * smoothstep(0.05, 0.6, water);   // breaking-wave decay over the last 50 m
   vec3 cyan = vec3(0.0, 0.898, 1.0);
   vec3 col = cyan * halo + mix(cyan, vec3(1.0), crest * crest) * crest;   // #00E5FF halo + edges → #FFFFFF core
   float alpha = clamp(crest + halo, 0.0, 1.0) * amp * shoreFade * layer.opacity;
-  fragColor = vec4(col * amp * shoreFade * layer.opacity, alpha);         // premultiplied for additive (src-alpha, one) blending
+  fragColor = vec4(col * amp * shoreFade * layer.opacity, alpha);         // premultiplied for additive (one, one) blending
   geometry.uv = uv;
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
@@ -133,7 +134,7 @@ export default class RollingWavefrontsLayer extends BitmapLayer<RollingExtra> {
   static layerName = "RollingWavefrontsLayer";
   static defaultProps = { ...BitmapLayer.defaultProps, time: 0, omega: 0.7, speed: 1, tScale: 0.25, hMax: 10, crestEvery: 3, crestWidth: 0.08, geometry: null,
     // additive luminance: crests glow over the floor, troughs add nothing
-    parameters: { blend: true, blendColorOperation: "add", blendColorSrcFactor: "src-alpha", blendColorDstFactor: "one", blendAlphaOperation: "add", blendAlphaSrcFactor: "one", blendAlphaDstFactor: "one", depthCompare: "always" } as const };
+    parameters: { blend: true, blendColorOperation: "add", blendColorSrcFactor: "one", blendColorDstFactor: "one", blendAlphaOperation: "add", blendAlphaSrcFactor: "one", blendAlphaDstFactor: "one", depthCompare: "always" } as const };
 
   getShaders() {
     const s = super.getShaders();

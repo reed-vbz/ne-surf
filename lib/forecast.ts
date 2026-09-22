@@ -1,4 +1,4 @@
-/** Whole-horizon forecast for one spot: one scored point per WW3 step. Shared by the map page and the spot page. */
+/** Whole-horizon forecast for one spot: one scored point per hour, recomputed from the forcing. Shared by the map page and the spot page. */
 import type { Bathymetry, Calibration, HrrrSpots, TideStation, Ww3Index, Ww3Spots } from "./cache";
 import { conditionsFor } from "./conditions";
 import { scoreSpot, type Conditions, type ScoreBreakdown, type Spot } from "./quality";
@@ -19,10 +19,17 @@ export function forecastFor(spot: Spot, d: ForecastData): ForecastPoint[] {
   const h = d.hrrr?.spots.spots.find((s) => s.id === spot.id)?.series;
   const tide = d.tides[spot.tide.station_id] ?? null;
   const bathy = d.bathy.spots[spot.id] ?? null;
-  return d.ww3.index.steps.map((st) => {
-    const cond = conditionsFor(spot, st.valid_time, w, h, tide, d.cal, bathy);
-    return { hour: st.hour, valid_time: st.valid_time, cond, result: scoreSpot(spot, cond) };
-  });
+  const steps = d.ww3.index.steps;
+  if (!steps.length) return [];
+  const out: ForecastPoint[] = [];
+  const start = Date.parse(steps[0].valid_time), end = Date.parse(steps.at(-1)!.valid_time);
+  for (let t = start; t <= end; t += 3_600_000) {
+    const valid_time = new Date(t).toISOString();
+    const cond = conditionsFor(spot, valid_time, w, h, tide, d.cal, bathy);
+    if (cond.wave_status === "missing") continue;
+    out.push({ hour: (t - Date.parse(d.ww3.index.cycle)) / 3_600_000, valid_time, cond, result: scoreSpot(spot, cond) });
+  }
+  return out;
 }
 
 /** Best scoring point in the horizon, and the best per local day. */
@@ -46,7 +53,8 @@ export function byDay(points: ForecastPoint[]): Array<{ day: string; points: For
 export function representativePoint(points: ForecastPoint[], day: string, todayKey: string): ForecastPoint | null {
   const pts = points.filter((p) => dayKey.format(new Date(p.valid_time)) === day);
   if (!pts.length) return null;
-  const target = day === todayKey ? Date.now() : Date.parse(`${day}T16:00:00Z`);   // 16Z ≈ noon EDT
+  const noon = pts.find((p) => new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(new Date(p.valid_time)) === "12");
+  const target = day === todayKey ? Date.now() : Date.parse((noon ?? pts[Math.floor(pts.length / 2)]).valid_time);
   return pts.reduce((b, p) => (Math.abs(Date.parse(p.valid_time) - target) < Math.abs(Date.parse(b.valid_time) - target) ? p : b), pts[0]);
 }
 export const dayKeyOf = (iso: string | number) => dayKey.format(new Date(iso));

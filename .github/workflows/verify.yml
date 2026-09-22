@@ -1,0 +1,23 @@
+name: verify
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test && npm run build
+  physics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: cd workers && uv venv .venv && uv pip install -p .venv/bin/python -e '.[pinn]'
+      - run: cd workers && .venv/bin/python -m unittest discover -s tests -v

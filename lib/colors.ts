@@ -39,7 +39,7 @@ export const swellColor = (hsFt: number, tpS: number): RGB => ramp(SWELL_STOPS, 
 export const swellHex = (hsFt: number, tpS: number) => rgbToHex(swellColor(hsFt, tpS));
 
 // ---------------------------------------------------------------- wind alignment (coastal ribbon)
-export const WIND_ALIGN = { offshore: "#00FF88", cross: "#FFB800", onshore: "#FF3366" } as const;
+export const WIND_ALIGN = { offshore: "#00FF88", cross: "#FFB800", onshore: "#FF3366", light: "#B9D3DF" } as const;
 export const WIND_STOPS: Array<[number, string]> = [[-1, WIND_ALIGN.onshore], [-0.25, WIND_ALIGN.onshore], [0, WIND_ALIGN.cross], [0.35, WIND_ALIGN.offshore], [1, WIND_ALIGN.offshore]];
 
 /**
@@ -50,13 +50,12 @@ export const WIND_STOPS: Array<[number, string]> = [[-1, WIND_ALIGN.onshore], [-
 export function windAlignment(windTowardDeg: number, normalDeg: number): number {
   return Math.cos(((windTowardDeg - normalDeg) * Math.PI) / 180);
 }
-export type WindTier = "offshore" | "cross" | "onshore";
-export const windTier = (alignment: number): WindTier => (alignment >= 0.35 ? "offshore" : alignment > -0.25 ? "cross" : "onshore");
-/** Colour for a ribbon segment; light wind fades toward the cross colour so a 2 kt onshore is not crimson. */
+export type WindTier = "offshore" | "cross" | "onshore" | "light";
+export const windTier = (alignment: number, speedKts = Infinity): WindTier => speedKts < 3 ? "light" : alignment >= 0.35 ? "offshore" : alignment > -0.25 ? "cross" : "onshore";
+/** Categorical ribbon colour; pale light wind is distinct from cross-shore yellow. */
 export function ribbonColor(windTowardDeg: number, speedKts: number, normalDeg: number): RGB {
   const a = windAlignment(windTowardDeg, normalDeg);
-  const confidence = Math.min(1, Math.max(0, (speedKts - 3) / 9)); // < 3 kt = no signal, 12 kt+ = full
-  return mixRgb(hexToRgb(WIND_ALIGN.cross), ramp(WIND_STOPS, a), confidence);
+  return hexToRgb(WIND_ALIGN[windTier(a, speedKts)]);
 }
 export const ribbonHex = (windTowardDeg: number, speedKts: number, normalDeg: number) => rgbToHex(ribbonColor(windTowardDeg, speedKts, normalDeg));
 

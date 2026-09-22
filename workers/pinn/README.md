@@ -1,12 +1,10 @@
 # SWAN-PINN surrogate (workers/pinn)
 
-A PyTorch U-Net / ConvLSTM surrogate that emulates SWAN nearshore wave transformation over the NOAA CRM bathymetry of the
-MA · NH · ME region, with a composite physics-informed loss, a FastAPI inference endpoint calibrated against live NDBC
-buoys, and a GPU data bridge to the app's Rolling Wavefronts shader.
+A PyTorch U-Net / ConvLSTM surrogate of the regional physics teacher, with an optional SWAN target loader. It uses a composite physics-informed loss, a FastAPI inference endpoint and a GPU data bridge. No independent local forecast skill has been established. See `docs/forecast-model-contract.md` for the current contract.
 
 ```
 cd workers && uv pip install -p .venv/bin/python -e ".[pinn]"
-PYTHONPATH=. .venv/bin/python -m pinn.sdf                       # geometry: depth + signed distance field (270 m grid)
+PYTHONPATH=. .venv/bin/python -m pinn.sdf                       # geometry: depth + signed distance field (stride-2 CRM grid; separate dy/dx metrics)
 PYTHONPATH=. .venv/bin/python -m pinn.train --epochs 30         # trains against the physics teacher → .scratch/pinn/checkpoint.pt
 PYTHONPATH=. .venv/bin/uvicorn pinn.api:app --port 8100         # inference API (checkpoint if present, else the teacher)
 ```
@@ -29,7 +27,6 @@ sinh clamp; held-out vs the teacher: H_s MAE 0.30 m, wavenumber error 64 %. That
 one passes; `/health` shows the checkpoint's metrics and `passes_gate`. More epochs/samples (`--epochs 60 --samples 300`) or real SWAN
 targets are the path to passing it.
 
-**Honesty note.** No SWAN runs exist for this region yet, so a trained checkpoint is a surrogate of the physics teacher,
-not of SWAN. The API and the published textures (`workers/nesurf/wavefield.py`, run by the ingest cron) use the teacher
-until a checkpoint trained on real SWAN output is dropped at `.scratch/pinn/checkpoint.pt`. Buoy calibration uses
-44097 and 44098; 44018 has returned 404 from NDBC since 2026-09-21.
+**Current serving contract (version 2).** Geometry is fingerprinted and old scalar-spacing geometry is rebuilt. Checkpoints must match that fingerprint and the solver version, have finite held-out metrics, and identify matching target/validation sources. Teacher emulation is labeled as such. A SWAN-target checkpoint evaluated only against the teacher is rejected. No real SWAN benchmark or local face-height observations are included in this repository.
+
+Bulk buoy ratios are diagnostic until their transfer to individual partitions and locations is validated; the primary swell field is not scaled by an unvalidated regional average. Nonfinite physics losses abort training. The energy residual uses separate axis distances and excludes land-adjacent and domain-edge cells rather than wrapping opposite boundaries.

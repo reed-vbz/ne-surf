@@ -10,13 +10,14 @@ Real-time inference API (FastAPI).
   GET  /index.json + /fNNN.png                           → the same contract as the published cache (drop-in for
                                                           NEXT_PUBLIC_PINN_API): every WW3 step, inferred on request
 
-Inference: the U-Net checkpoint when workers/.scratch/pinn/checkpoint.pt exists AND its held-out metrics (recorded by
-train.py) pass GATE, else the physics teacher (identical outputs to the published textures); /health reports both. Calibration: the H_s field is scaled by the live NDBC ratio obs / model from the
-calibration worker (buoys 44097 and 44098 — 44018 has been offline/404 since at least 2026-09-21), damped by pair count.
+Inference uses a checkpoint only with matching geometry fingerprint, solver version, target/validation provenance and
+passing held-out metrics. Otherwise it serves the physics teacher. Bulk NDBC calibration is diagnostic until its
+partition and spatial transfer is validated; it is not applied to this regional primary-swell field.
 """
 from __future__ import annotations
 
 import json
+import io
 import math
 from functools import lru_cache
 from pathlib import Path
@@ -26,6 +27,8 @@ import torch
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
+from PIL import Image
+from nesurf.wavefield import encode_geometry
 
 from .model import SwanUNet
 from .teacher import teacher_fields
@@ -55,30 +58,28 @@ def checkpoint() -> dict | None:
     return torch.load(CKPT, map_location="cpu") if CKPT.exists() else None
 
 
-def checkpoint_passes(ck: dict | None) -> bool:
+def checkpoint_passes(ck: dict | None, expected_geometry_hash: str | None = None) -> bool:
     m = (ck or {}).get("metrics")
-    return bool(m) and m["hs_mae_m"] <= GATE["hs_mae_m"] and m["k_rel_err"] <= GATE["k_rel_err"]
+    if not ck or ck.get("geometry_version") != 2 or ck.get("teacher_version") != 2: return False
+    fingerprint = ck.get("geometry_hash", "")
+    if not isinstance(fingerprint,str) or len(fingerprint) != 64: return False
+    if expected_geometry_hash is not None and fingerprint != expected_geometry_hash: return False
+    if not m or ck.get("validation_source") != ck.get("target_source"): return False
+    # Teacher emulation can be served as teacher emulation; it must never be advertised as SWAN skill.
+    return all(isinstance(m.get(k), (int,float)) and math.isfinite(m[k]) and 0 <= m[k] <= v for k,v in GATE.items())
 
 
 @lru_cache(maxsize=1)
 def model() -> SwanUNet | None:
     ck = checkpoint()
-    if not ck or not checkpoint_passes(ck): return None
+    if not ck or not checkpoint_passes(ck, geometry()["geometry_hash"]): return None
     m = SwanUNet(c_in=ck["c_in"], base=ck["base"]); m.load_state_dict(ck["state_dict"]); m.eval()
     return m
 
 
 def calibration_ratio() -> tuple[float, dict]:
-    """Damped obs/model H_s ratio from the live buoy calibration (mean over the calibration buoys that report)."""
-    if not CAL.exists(): return 1.0, {}
-    j = json.loads(CAL.read_text()); used = {}
-    for b in CAL_BUOYS:
-        r = j.get("buoys", {}).get(b)
-        if r and r.get("ratio_hs") and not r.get("low_confidence"): used[b] = {"ratio_hs": r["ratio_hs"], "n_pairs": r["n_pairs"]}
-    if not used: return 1.0, {}
-    ratios = [v["ratio_hs"] for v in used.values()]; n = sum(v["n_pairs"] for v in used.values())
-    damped = 1.0 + (float(np.mean(ratios)) - 1.0) * min(1.0, n / 24.0)
-    return float(np.clip(damped, 0.5, 2.0)), used
+    """A bulk buoy ratio does not validate correction of the primary swell field."""
+    return 1.0, {}
 
 
 class Boundary(BaseModel):
@@ -89,7 +90,7 @@ def infer(bc: Boundary) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray,
     g = geometry(); m = model()
     with torch.no_grad():
         if m is not None:
-            out = m(input_tensor(g, bc.hs0_m, bc.tp_s, bc.dir_from_deg, bc.wind_ms))[0].numpy(); src = "checkpoint"
+            out = m(input_tensor(g, bc.hs0_m, bc.tp_s, bc.dir_from_deg, bc.wind_ms))[0].numpy(); src = str(checkpoint().get("target_source", "unknown")) + "-surrogate"
         else:
             out = teacher_fields(g, bc.hs0_m, bc.tp_s, bc.dir_from_deg)[0].numpy(); src = "physics-teacher"
     ratio, _ = calibration_ratio()
@@ -101,8 +102,8 @@ def infer(bc: Boundary) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray,
 def health():
     g = geometry(); ratio, used = calibration_ratio()
     ck = checkpoint()
-    return {"model": "checkpoint" if model() is not None else "physics-teacher", "checkpoint": None if not ck else {"metrics": ck.get("metrics"), "epochs": ck.get("epochs"), "samples": ck.get("samples"), "passes_gate": checkpoint_passes(ck), "gate": GATE},
-            "grid": list(g["depth"].shape), "res_m": g["res_m"], "calibration": {"ratio_hs": ratio, "buoys": used}}
+    return {"model": "checkpoint" if model() is not None else "physics-teacher", "checkpoint": None if not ck else {"metrics": ck.get("metrics"), "epochs": ck.get("epochs"), "samples": ck.get("samples"), "passes_gate": checkpoint_passes(ck, g["geometry_hash"]), "gate": GATE},
+            "grid": list(g["depth"].shape), "res_m": list(g["res_m"]), "calibration": {"ratio_hs": ratio, "buoys": used}}
 
 
 @app.post("/infer")
@@ -115,7 +116,7 @@ def infer_json(bc: Boundary):
 @app.get("/infer.png")
 def infer_png(hs0_m: float = Query(gt=0), tp_s: float = Query(ge=3), dir_from_deg: float = Query(ge=0, lt=360), wind_ms: float = 0.0):
     bc = Boundary(hs0_m=hs0_m, tp_s=tp_s, dir_from_deg=dir_from_deg, wind_ms=wind_ms); hs, _, _, k, _ = infer(bc); g = geometry()
-    return Response(to_texture_png(hs, k, g["water"], g["sdf"], tp_s, dir_from_deg, float(g["res_m"])), media_type="image/png", headers={"Cache-Control": "public, max-age=600"})
+    return Response(to_texture_png(hs, k, g["water"], g["sdf"], tp_s, dir_from_deg, tuple(g["res_m"])), media_type="image/png", headers={"Cache-Control": "public, max-age=600"})
 
 
 @app.get("/infer.f32")
@@ -131,14 +132,22 @@ def index():
     for st, step, idx in ww3_steps():
         hs0, tp, d, _ = boundary_from_ww3(step, idx, g)
         steps.append({"hour": st["hour"], "valid_time": st["valid_time"], "file": f"f{st['hour']:03d}.png", "hs0_m": round(hs0, 2), "tp_s": round(tp, 1), "dir_from_deg": round(d, 1), "omega": round(2 * math.pi / tp, 5), "t_max_s": None})
-    return JSONResponse({"cycle": "live", "source": "pinn.api " + ("checkpoint" if model() else "physics-teacher"), "bounds": [g["lon0"], g["lat0"], g["lon0"] + w * g["res_deg"], g["lat0"] + h * g["res_deg"]], "shape": [h, w], "res_deg": g["res_deg"], "encoding": ENCODING, "steps": steps})
+    return JSONResponse({"cycle": idx["cycle"] if steps else None, "solver_version": 2, "source": "pinn.api " + ("checkpoint" if model() else "physics-teacher"), "bounds": [g["lon0"]-g["res_deg"]/2, g["lat0"]-g["res_deg"]/2, g["lon0"] + (w-0.5) * g["res_deg"], g["lat0"] + (h-0.5) * g["res_deg"]], "shape": [h, w], "res_deg": g["res_deg"], "encoding": {**ENCODING, "geometry": {"file": "geometry.png", "sdf_offset_m": 8192, "depth_scale_m": 2}}, "steps": steps})
 
 
 @app.get("/f{hour}.png")
-def step_png(hour: int):
+def step_png(hour: int, cycle: str | None = None):
     g = geometry()
     for st, step, idx in ww3_steps():
+        if cycle is not None and cycle != idx["cycle"]: return JSONResponse({"error": "cycle changed; reload index"}, status_code=409)
         if st["hour"] == hour:
             hs0, tp, d, wind = boundary_from_ww3(step, idx, g); hs, _, _, k, _ = infer(Boundary(hs0_m=hs0, tp_s=tp, dir_from_deg=d, wind_ms=wind))
-            return Response(to_texture_png(hs, k, g["water"], g["sdf"], tp, d, float(g["res_m"])), media_type="image/png")
+            return Response(to_texture_png(hs, k, g["water"], g["sdf"], tp, d, tuple(g["res_m"])), media_type="image/png")
     return JSONResponse({"error": "no such step"}, status_code=404)
+
+
+@app.get("/geometry.png")
+def geometry_png():
+    g = geometry(); buf = io.BytesIO()
+    Image.fromarray(encode_geometry(g["sdf"], g["depth"])[::-1], "RGBA").save(buf, format="PNG")
+    return Response(buf.getvalue(), media_type="image/png")
