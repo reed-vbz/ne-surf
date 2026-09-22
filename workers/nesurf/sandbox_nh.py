@@ -33,7 +33,7 @@ from .coastline import ribbon as ribbon_segments
 from .common import REPO_ROOT, load_spots
 
 CRM_URL = "https://www.ngdc.noaa.gov/thredds/dodsC/crm/crm_vol1.nc"
-S, N, W, E = 42.70, 43.35, -70.95, -70.15          # Plum Island MA → Ogunquit ME, out past the 100 m shelf
+S, N, W, E = 42.80, 43.60, -70.85, -70.20          # Reed's regional bbox 2026-09-22: Salisbury MA → Scarborough ME
 BINS = [(0, 2), (2, 5), (5, 10), (10, 20), (20, 40), (40, 80), (80, 150), (150, 400)]
 MIN_CELLS = 16          # isobath speckle: regions / holes below this many 90 m cells are absorbed into their surroundings
 MAX_ZOOM = 13           # MapLibre overzooms vector tiles; z13 (≈14 m/px here) is plenty for smoothed isobaths
@@ -100,9 +100,12 @@ def main() -> int:
             if g.is_empty: continue
             out.extend(list(g.geoms) if g.geom_type == "MultiPolygon" else [g])   # explode: the ribbon walker wants Polygons
         return out
-    land = polys(~water)
-    land_u = unary_union(land)
-    ocean = box(W, S, E, N).difference(land_u)
+    # L3 land = bbox minus the ocean's OWN outline (the 0 m contour used by L0), so land and bathymetry share one exact
+    # edge: no sliver of basemap can show between them. Not simplified client-side; smoothing happens once, here.
+    ocean_u = unary_union(polys(water)).buffer(0)
+    land_u = box(W, S, E, N).difference(ocean_u).buffer(0)
+    land = [g for g in (land_u.geoms if land_u.geom_type == "MultiPolygon" else [land_u]) if not g.is_empty]
+    ocean = ocean_u
     def fc(feats): return {"type": "FeatureCollection", "features": feats}
     (OUT / "land.geojson").write_text(json.dumps(fc([{"type": "Feature", "properties": {}, "geometry": mapping(g)} for g in land]), separators=(",", ":")))
     (OUT / "ocean.geojson").write_text(json.dumps(fc([{"type": "Feature", "properties": {}, "geometry": mapping(ocean)}]), separators=(",", ":")))
@@ -116,10 +119,10 @@ def main() -> int:
         lab, n = ndimage.label(m); sizes = np.bincount(lab.ravel()); m = m & (sizes[lab] >= MIN_CELLS)
         lab, n = ndimage.label(~m); sizes = np.bincount(lab.ravel()); holes = (~m) & (sizes[lab] < MIN_CELLS)
         return (m | holes) & water
-    cum = []
-    for lo, _ in BINS:
+    cum = [ocean_u]   # bin 0 starts from the same outline as the land mask
+    for lo, _ in BINS[1:]:
         g = unary_union(polys(declutter(water & (depth_s > lo)))).buffer(0)
-        if cum: g = g.intersection(cum[-1]).buffer(0)      # enforce nesting after independent smoothing
+        g = g.intersection(cum[-1]).buffer(0)      # enforce nesting after independent smoothing
         cum.append(g)
     bathy = []
     for k, (lo, hi) in enumerate(BINS):

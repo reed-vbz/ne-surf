@@ -1,6 +1,6 @@
 "use client";
 /**
- * 1:1 port of design/ne-surf-handoff/ui-reference.html. Every px, hex, radius, opacity and font value below is
+ * 1:1 port of design/ne-surf-handoff/ui-reference.html (v2, 2026-09-22: mode chips removed, Layers control → Forecast drawer control). Every px, hex, radius, opacity and font value below is
  * copied from that file; only the text content and the map slot are props. Do not restyle from memory —
  * change ui-reference.html first, then this file, then pass `npm run diff`.
  *
@@ -16,24 +16,17 @@ export interface ScreenModel {
   layerCard: { title: string; body: string };
   callouts: Array<{ id: string; name: string; body: string; left: number; top: number; color?: string }>;
   hotspot: { rating: string; ratingColor: string; line1: string; line2: string; pinColor: string };
-  mode: "forecast" | "refraction" | "buoys";
-  /** null = no chip highlighted (as in ui-reference.html) */
-  activeMode: "forecast" | "refraction" | "buoys" | null;
   searchValue: string;
+  /** position of the timeline knob inside the active day (0–1); undefined = centred, as in ui-reference.html */
+  knobFraction?: number;
 }
 
 export interface ScreenHandlers {
   onPrev: () => void; onNext: () => void; onPickDay: (i: number) => void;
-  onMode: (m: ScreenModel["mode"]) => void; onSearch: (q: string) => void;
-  onLayers: () => void; onMenu: () => void; onHotspot: () => void;
+  onSearch: (q: string) => void;
+  onForecast: () => void; onMenu: () => void; onHotspot: () => void;
 }
 
-const chip = (active: boolean): CSSProperties => ({
-  height: 30, padding: "0px 6px", borderRadius: 6,
-  background: active ? "#4798b7" : "rgba(255,255,255,0.10)", border: active ? "1px solid #4798b7" : "1px solid rgba(255,255,255,0.16)",
-  color: active ? "#0e2029" : "#e8eef2", fontFamily: "'Barlow Condensed', 'Barlow', system-ui, sans-serif", fontSize: 10.5, fontWeight: 600,
-  letterSpacing: "0.03em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", cursor: "pointer", flexShrink: 0,
-});
 const panelTitle10: CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "#e8eef2" };
 const legendCard: CSSProperties = { borderRadius: 8, background: "#0e212a", boxShadow: "0px 4px 14px rgba(0,0,0,0.35)", boxSizing: "border-box", padding: "8px 10px 8px 10px", display: "flex", flexDirection: "column", gap: 6 };
 const legendRow: CSSProperties = { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 500, color: "#ffffff" };
@@ -49,7 +42,7 @@ const pill = (hex: string) => (
 );
 
 export default function OverviewScreen({ m, h, map, children }: { m: ScreenModel; h: ScreenHandlers; map: ReactNode; children?: ReactNode }) {
-  const pct = ((m.selectedIndex + 0.5) / 7) * 100;
+  const pct = ((m.selectedIndex + (m.knobFraction ?? 0.5)) / 7) * 100;
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", background: "#0e2029", boxSizing: "border-box", fontFamily: "'Barlow', system-ui, sans-serif" }}>
 
@@ -67,20 +60,8 @@ export default function OverviewScreen({ m, h, map, children }: { m: ScreenModel
         </button>
       </div>
 
-      {/* MODE TOOLBAR */}
+      {/* SEARCH BAR (the mode/layer chips were removed 2026-09-22: all five map layers render permanently) */}
       <div style={{ position: "absolute", left: 0, top: 84, width: "100%", height: 44, background: "#2c3a42", boxSizing: "border-box", padding: "0px 8px", display: "flex", alignItems: "center", gap: 5, zIndex: 5 }}>
-        <button aria-label="Forecast slider" aria-pressed={m.mode === "forecast"} onClick={() => h.onMode("forecast")} className="hit44" style={chip(m.activeMode === "forecast")}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="9" cy="7" r="2" fill="#2c3a42"></circle><circle cx="15" cy="12" r="2" fill="#2c3a42"></circle><circle cx="8" cy="17" r="2" fill="#2c3a42"></circle></svg>
-          <span>Forecast slider</span>
-        </button>
-        <button aria-label="Refraction map" aria-pressed={m.mode === "refraction"} onClick={() => h.onMode("refraction")} className="hit44" style={chip(m.activeMode === "refraction")}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
-          <span>Refraction map</span>
-        </button>
-        <button aria-label="Live buoy feed" aria-pressed={m.mode === "buoys"} onClick={() => h.onMode("buoys")} className="hit44" style={chip(m.activeMode === "buoys")}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="2"></circle><line x1="12" y1="7" x2="12" y2="13"></line><path d="M6 20 L12 13 L18 20 Z"></path><path d="M3 21 C6 19 9 19 12 21 C15 19 18 19 21 21"></path></svg>
-          <span>Live buoy feed</span>
-        </button>
         <label style={{ flexGrow: 1, flexShrink: 1, height: 30, minWidth: 56, borderRadius: 6, background: "#394850", display: "flex", alignItems: "center", gap: 5, padding: "0px 7px", boxSizing: "border-box" }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9fb1bc" strokeWidth="2.4" strokeLinecap="round"><circle cx="11" cy="11" r="6"></circle><line x1="16" y1="16" x2="21" y2="21"></line></svg>
           <input type="search" placeholder="Search" aria-label="Search breaks" value={m.searchValue} onChange={(e) => h.onSearch(e.target.value)}
@@ -124,9 +105,9 @@ export default function OverviewScreen({ m, h, map, children }: { m: ScreenModel
         <div style={{ fontSize: 10, fontWeight: 500, color: "#b8c7d1", lineHeight: 1.3 }}>{m.layerCard.body}</div>
       </div>
 
-      {/* MAP CONTROL: LAYERS */}
-      <button aria-label="Map layers" onClick={h.onLayers} className="hit44" style={{ position: "absolute", right: 8, top: 254, width: 40, height: 40, borderRadius: 8, background: "#0e212a", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0px 4px 14px rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 4 }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8eef2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 3 21 8 12 13 3 8 12 3"></polygon><polyline points="3 12 12 17 21 12"></polyline><polyline points="3 16 12 21 21 16"></polyline></svg>
+      {/* MAP CONTROL: FORECAST DRAWER */}
+      <button aria-label="Surf forecast" onClick={h.onForecast} className="hit44" style={{ position: "absolute", right: 8, top: 254, width: 40, height: 40, borderRadius: 8, background: "#0e212a", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0px 4px 14px rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 4 }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8eef2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 16 8 10 12 14 16 7 21 11"></polyline><line x1="3" y1="20" x2="21" y2="20"></line></svg>
       </button>
 
       {/* BREAK CALLOUTS */}

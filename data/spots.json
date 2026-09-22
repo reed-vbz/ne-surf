@@ -1,1681 +1,2336 @@
 {
-  "version": 1,
-  "_readme": "Coordinates checked against OSM Nominatim, facing angles and shadow sectors computed from the GLOBE 1 km land mask (see each spot's `verification`). Swell/wind/tide tuning numbers are still hand-entered surf knowledge, not measured.",
-  "spots": [
+ "version": 1,
+ "_readme": "Coordinates checked against OSM Nominatim, facing angles and shadow sectors computed from the GLOBE 1 km land mask (see each spot's `verification`). Swell/wind/tide tuning numbers are still hand-entered surf knowledge, not measured.",
+ "spots": [
+  {
+   "id": "nobadeer-ma",
+   "name": "Nobadeer",
+   "state": "MA",
+   "area": "Nantucket",
+   "location": {
+    "lat": 41.2432,
+    "lon": -70.0595
+   },
+   "break_type": "beach",
+   "facing_deg": 180,
+   "offshore_sample_point": {
+    "lat": 41.1,
+    "lon": -70.05
+   },
+   "swell": {
+    "window": {
+     "from_deg": 112.0,
+     "to_deg": 230.0
+    },
+    "ideal_deg": 175,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [],
+   "wind": {
+    "offshore_deg": 0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8449130",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44008"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "summer",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 1.54 km away",
+    "facing": "hand value within 15° of computed (173)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 112-230"
+   }
+  },
+  {
+   "id": "misquamicut-ri",
+   "name": "Misquamicut",
+   "state": "RI",
+   "area": "Rhode Island south shore",
+   "location": {
+    "lat": 41.32,
+    "lon": -71.84
+   },
+   "break_type": "beach",
+   "facing_deg": 180,
+   "offshore_sample_point": {
+    "lat": 41.2,
+    "lon": -71.85
+   },
+   "swell": {
+    "window": {
+     "from_deg": 130.0,
+     "to_deg": 230.0
+    },
+    "ideal_deg": 180,
+    "angle_tolerance_deg": 30,
+    "min_period_s": 7,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
     {
-      "id": "misquamicut-ri",
-      "name": "Misquamicut",
-      "state": "RI",
-      "area": "Rhode Island south shore",
-      "location": {
-        "lat": 41.32,
-        "lon": -71.84
-      },
-      "break_type": "beach",
-      "facing_deg": 180,
-      "offshore_sample_point": {
-        "lat": 41.2,
-        "lon": -71.85
-      },
-      "swell": {
-        "window": {
-          "from_deg": 130.0,
-          "to_deg": 230.0
-        },
-        "ideal_deg": 180,
-        "angle_tolerance_deg": 30,
-        "min_period_s": 7,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 114.0,
-          "to_deg": 134.0,
-          "attenuation": 0.85,
-          "by": "Block Island",
-          "distance_km": 25,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 182.0,
-          "to_deg": 232.0,
-          "attenuation": 0.95,
-          "by": "Long Island / Montauk",
-          "distance_km": 32
-        }
-      ],
-      "wind": {
-        "offshore_deg": 0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8458694",
-        "station_kind": "subordinate",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44097",
-        "44008"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 3.13 km, type beach)",
-        "facing": "hand value within 15\u00b0 of computed (184)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "hand window lies inside open-sea arc 102-232"
-      }
+     "from_deg": 114.0,
+     "to_deg": 134.0,
+     "attenuation": 0.85,
+     "by": "Block Island",
+     "distance_km": 25,
+     "min_period_s": 12
     },
     {
-      "id": "matunuck-ri",
-      "name": "Matunuck",
-      "state": "RI",
-      "area": "Rhode Island south shore",
-      "location": {
-        "lat": 41.3746,
-        "lon": -71.5508
-      },
-      "break_type": "reef",
-      "facing_deg": 170,
-      "offshore_sample_point": {
-        "lat": 41.25,
-        "lon": -71.45
-      },
-      "swell": {
-        "window": {
-          "from_deg": 120.0,
-          "to_deg": 220.0
-        },
-        "ideal_deg": 175,
-        "angle_tolerance_deg": 25,
-        "min_period_s": 7,
-        "ideal_period_s": 11,
-        "min_height_m": 0.7,
-        "ideal_height_m": 1.8,
-        "max_height_m": 3.5
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 180.0,
-          "to_deg": 192.0,
-          "attenuation": 0.6,
-          "by": "Block Island",
-          "distance_km": 17,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 218.0,
-          "to_deg": 236.0,
-          "attenuation": 0.85,
-          "by": "Long Island / Montauk",
-          "distance_km": 53,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 350,
-        "offshore_tolerance_deg": 55,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8455083",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "rising",
-        "avoid": [
-          "low"
-        ],
-        "notes": "Rocky bottom exposed at dead low."
-      },
-      "buoys": [
-        "44097",
-        "44008"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "hand value within 15\u00b0 of computed (170)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "hand window lies inside open-sea arc 104-236"
-      }
-    },
-    {
-      "id": "point-judith-ri",
-      "name": "Point Judith (Lighthouse)",
-      "state": "RI",
-      "area": "Rhode Island south shore",
-      "location": {
-        "lat": 41.361,
-        "lon": -71.4814
-      },
-      "break_type": "point",
-      "facing_deg": 160,
-      "offshore_sample_point": {
-        "lat": 41.25,
-        "lon": -71.45
-      },
-      "swell": {
-        "window": {
-          "from_deg": 110.0,
-          "to_deg": 210.0
-        },
-        "ideal_deg": 165,
-        "angle_tolerance_deg": 25,
-        "min_period_s": 8,
-        "ideal_period_s": 12,
-        "min_height_m": 0.9,
-        "ideal_height_m": 2.0,
-        "max_height_m": 4.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 80.0,
-          "to_deg": 96.0,
-          "attenuation": 0.6,
-          "by": "Elizabeth Islands",
-          "distance_km": 59,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 194.0,
-          "to_deg": 208.0,
-          "attenuation": 0.6,
-          "by": "Block Island",
-          "distance_km": 17,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 224.0,
-          "to_deg": 240.0,
-          "attenuation": 0.6,
-          "by": "Long Island / Montauk",
-          "distance_km": 58,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 340,
-        "offshore_tolerance_deg": 55,
-        "max_onshore_kts": 15,
-        "max_cross_kts": 18,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8455083",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44097",
-        "44008"
-      ],
-      "skill": "advanced",
-      "season": [
-        "fall",
-        "winter"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM lighthouse node, was 0.0 km away",
-        "facing": "hand value within 15\u00b0 of computed (165)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "hand window lies inside open-sea arc 80-240"
-      }
-    },
-    {
-      "id": "narragansett-town-beach-ri",
-      "name": "Narragansett Town Beach",
-      "state": "RI",
-      "area": "Rhode Island south shore",
-      "location": {
-        "lat": 41.4364,
-        "lon": -71.4534
-      },
-      "break_type": "beach",
-      "facing_deg": 120,
-      "offshore_sample_point": {
-        "lat": 41.35,
-        "lon": -71.3
-      },
-      "swell": {
-        "window": {
-          "from_deg": 90.0,
-          "to_deg": 170.0
-        },
-        "ideal_deg": 140.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.5,
-        "ideal_height_m": 1.2,
-        "max_height_m": 2.5
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 84.0,
-          "to_deg": 104.0,
-          "attenuation": 0.85,
-          "by": "Elizabeth Islands",
-          "distance_km": 52,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 300.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 10,
-        "max_cross_kts": 14,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8455083",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "rising"
-      },
-      "buoys": [
-        "44097"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "hand value within 15\u00b0 of computed (130)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 76-170 (was 90-200)"
-      }
-    },
-    {
-      "id": "ruggles-ri",
-      "name": "Ruggles",
-      "state": "RI",
-      "area": "Newport",
-      "location": {
-        "lat": 41.47,
-        "lon": -71.311
-      },
-      "break_type": "reef",
-      "facing_deg": 165,
-      "offshore_sample_point": {
-        "lat": 41.35,
-        "lon": -71.3
-      },
-      "swell": {
-        "window": {
-          "from_deg": 110.0,
-          "to_deg": 180.0
-        },
-        "ideal_deg": 152.0,
-        "angle_tolerance_deg": 25,
-        "min_period_s": 9,
-        "ideal_period_s": 13,
-        "min_height_m": 1.2,
-        "ideal_height_m": 2.5,
-        "max_height_m": 6.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 80.0,
-          "to_deg": 96.0,
-          "attenuation": 0.6,
-          "by": "Sakonnet Point",
-          "distance_km": 10,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 98.0,
-          "to_deg": 112.0,
-          "attenuation": 0.6,
-          "by": "Elizabeth Islands",
-          "distance_km": 42,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 345,
-        "offshore_tolerance_deg": 50,
-        "max_onshore_kts": 15,
-        "max_cross_kts": 18,
-        "glassy_below_kts": 6
-      },
-      "tide": {
-        "station_id": "8452660",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any",
-        "avoid": [
-          "low"
-        ],
-        "notes": "Shallow rock ledge; needs water on it."
-      },
-      "buoys": [
-        "44097",
-        "44008"
-      ],
-      "skill": "expert",
-      "season": [
-        "fall",
-        "winter"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 0.42 km, type tertiary)",
-        "facing": "kept hand value 165: computed 117 but reef / land fraction 0.83 makes the 1 km mask unreliable",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 82-152 (was 110-210)"
-      }
-    },
-    {
-      "id": "second-beach-ri",
-      "name": "Second Beach (Sachuest)",
-      "state": "RI",
-      "area": "Newport",
-      "location": {
-        "lat": 41.484,
-        "lon": -71.253
-      },
-      "break_type": "beach",
-      "facing_deg": 185,
-      "offshore_sample_point": {
-        "lat": 41.35,
-        "lon": -71.2
-      },
-      "swell": {
-        "window": {
-          "from_deg": 130.0,
-          "to_deg": 238.0
-        },
-        "ideal_deg": 180,
-        "angle_tolerance_deg": 30,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.5,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 100.0,
-          "to_deg": 118.0,
-          "attenuation": 0.85,
-          "by": "Sakonnet Point",
-          "distance_km": 6,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 214.0,
-          "to_deg": 224.0,
-          "attenuation": 0.6,
-          "by": "Block Island",
-          "distance_km": 40,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 5,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8452660",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "rising"
-      },
-      "buoys": [
-        "44097",
-        "44008"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode None km, type None)",
-        "facing": "hand value within 15\u00b0 of computed (171)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 100-238 (was 130-240)"
-      }
-    },
-    {
-      "id": "horseneck-ma",
-      "name": "Horseneck Beach",
-      "state": "MA",
-      "area": "South Coast",
-      "location": {
-        "lat": 41.5112,
-        "lon": -71.0828
-      },
-      "break_type": "beach",
-      "facing_deg": 175,
-      "offshore_sample_point": {
-        "lat": 41.35,
-        "lon": -71.05
-      },
-      "swell": {
-        "window": {
-          "from_deg": 130.0,
-          "to_deg": 224.0
-        },
-        "ideal_deg": 180.0,
-        "angle_tolerance_deg": 30,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [],
-      "wind": {
-        "offshore_deg": 355.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8452660",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any",
-        "notes": "Nearest verified reference station is Newport; a Westport subordinate may exist \u2014 check mdapi."
-      },
-      "buoys": [
-        "44097",
-        "44008"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "hand value within 15\u00b0 of computed (163)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 130-224 (was 130-230)"
-      }
-    },
-    {
-      "id": "south-beach-katama-ma",
-      "name": "South Beach (Katama)",
-      "state": "MA",
-      "area": "Martha's Vineyard",
-      "location": {
-        "lat": 41.3494,
-        "lon": -70.5183
-      },
-      "break_type": "beach",
-      "facing_deg": 180,
-      "offshore_sample_point": {
-        "lat": 41.2,
-        "lon": -70.5
-      },
-      "swell": {
-        "window": {
-          "from_deg": 120.0,
-          "to_deg": 240.0
-        },
-        "ideal_deg": 180.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 90.0,
-          "to_deg": 98.0,
-          "attenuation": 0.6,
-          "by": "Martha's Vineyard",
-          "distance_km": 5,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 100.0,
-          "to_deg": 110.0,
-          "attenuation": 0.6,
-          "by": "Nantucket",
-          "distance_km": 22,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 0.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8448558",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44008",
-        "44097"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "summer",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.01 km away",
-        "facing": "hand value within 15\u00b0 of computed (174)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "hand window lies inside open-sea arc 90-246"
-      }
-    },
-    {
-      "id": "nobadeer-ma",
-      "name": "Nobadeer",
-      "state": "MA",
-      "area": "Nantucket",
-      "location": {
-        "lat": 41.2448,
-        "lon": -70.0778
-      },
-      "break_type": "beach",
-      "facing_deg": 180,
-      "offshore_sample_point": {
-        "lat": 41.1,
-        "lon": -70.05
-      },
-      "swell": {
-        "window": {
-          "from_deg": 112.0,
-          "to_deg": 230.0
-        },
-        "ideal_deg": 175,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [],
-      "wind": {
-        "offshore_deg": 0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8449130",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44008"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "summer",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "hand value within 15\u00b0 of computed (173)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 112-230 (was 110-240)"
-      }
-    },
-    {
-      "id": "nauset-beach-ma",
-      "name": "Nauset Beach",
-      "state": "MA",
-      "area": "Outer Cape",
-      "location": {
-        "lat": 41.7871,
-        "lon": -69.9359
-      },
-      "break_type": "beach",
-      "facing_deg": 90,
-      "offshore_sample_point": {
-        "lat": 41.8,
-        "lon": -69.75
-      },
-      "swell": {
-        "window": {
-          "from_deg": 20.0,
-          "to_deg": 152.0
-        },
-        "ideal_deg": 95,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.5
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 8.0,
-          "to_deg": 12.0,
-          "attenuation": 0.45,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 236,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 270,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8447435",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "rising",
-        "notes": "Sandbars shift every winter; tide preference is seasonal."
-      },
-      "buoys": [
-        "44008",
-        "44090"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.01 km away",
-        "facing": "hand value within 15\u00b0 of computed (85)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 8-152 (was 20-160)"
-      }
-    },
-    {
-      "id": "coast-guard-beach-ma",
-      "name": "Coast Guard Beach",
-      "state": "MA",
-      "area": "Outer Cape",
-      "location": {
-        "lat": 41.8451,
-        "lon": -69.9472
-      },
-      "break_type": "beach",
-      "facing_deg": 85,
-      "offshore_sample_point": {
-        "lat": 41.85,
-        "lon": -69.75
-      },
-      "swell": {
-        "window": {
-          "from_deg": 20.0,
-          "to_deg": 160.0
-        },
-        "ideal_deg": 90,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.5
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 358.0,
-          "to_deg": 16.0,
-          "attenuation": 0.64,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 221,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 265,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8447435",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44008",
-        "44090"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.01 km away",
-        "facing": "hand value within 15\u00b0 of computed (84)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "hand window lies inside open-sea arc 358-166"
-      }
-    },
-    {
-      "id": "nantasket-ma",
-      "name": "Nantasket Beach",
-      "state": "MA",
-      "area": "South Shore / Boston",
-      "location": {
-        "lat": 42.275,
-        "lon": -70.86
-      },
-      "break_type": "beach",
-      "facing_deg": 40.0,
-      "offshore_sample_point": {
-        "lat": 42.35,
-        "lon": -70.65
-      },
-      "swell": {
-        "window": {
-          "from_deg": 350.0,
-          "to_deg": 95.0
-        },
-        "ideal_deg": 45.0,
-        "angle_tolerance_deg": 30,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 350.0,
-          "to_deg": 28.0,
-          "attenuation": 0.95,
-          "by": "Cape Ann",
-          "distance_km": 30
-        },
-        {
-          "from_deg": 30.0,
-          "to_deg": 36.0,
-          "attenuation": 0.45,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 213,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 220.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8443970",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "any",
-        "notes": "Boston tide range ~3 m; high tide swamps the bars."
-      },
-      "buoys": [
-        "44013"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 0.6 km, type village)",
-        "facing": "adopted 40: ring-mean 28 and open-arc mid 47 agree (hand 75)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 350-104 (was 345-95)"
-      }
-    },
-    {
-      "id": "good-harbor-ma",
-      "name": "Good Harbor Beach",
-      "state": "MA",
-      "area": "Cape Ann",
-      "location": {
-        "lat": 42.6195,
-        "lon": -70.6314
-      },
-      "break_type": "beach",
-      "facing_deg": 120.0,
-      "offshore_sample_point": {
-        "lat": 42.5,
-        "lon": -70.5
-      },
-      "swell": {
-        "window": {
-          "from_deg": 72.0,
-          "to_deg": 164.0
-        },
-        "ideal_deg": 110.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 144.0,
-          "to_deg": 164.0,
-          "attenuation": 0.85,
-          "by": "Cape Cod",
-          "distance_km": 102,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 300.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8441841",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "rising"
-      },
-      "buoys": [
-        "44013",
-        "44098"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.01 km away",
-        "facing": "adopted 120: ring-mean 117 and open-arc mid 118 agree (hand 140)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 72-164 (was 40-170)"
-      }
-    },
-    {
-      "id": "salisbury-ma",
-      "name": "Salisbury Beach",
-      "state": "MA",
-      "area": "North Shore",
-      "location": {
-        "lat": 42.855,
-        "lon": -70.808
-      },
-      "break_type": "beach",
-      "facing_deg": 90,
-      "offshore_sample_point": {
-        "lat": 42.85,
-        "lon": -70.55
-      },
-      "swell": {
-        "window": {
-          "from_deg": 20.0,
-          "to_deg": 160.0
-        },
-        "ideal_deg": 95,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 350.0,
-          "to_deg": 44.0,
-          "attenuation": 0.95,
-          "by": "Isles of Shoals",
-          "distance_km": 13
-        },
-        {
-          "from_deg": 50.0,
-          "to_deg": 54.0,
-          "attenuation": 0.45,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 186,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 140.0,
-          "to_deg": 190.0,
-          "attenuation": 0.95,
-          "by": "Cape Ann",
-          "distance_km": 19
-        }
-      ],
-      "wind": {
-        "offshore_deg": 270,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8440273",
-        "station_kind": "reference",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44013",
-        "44098"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 1.57 km, type village)",
-        "facing": "hand value within 15\u00b0 of computed (90)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "hand window lies inside open-sea arc 0-180"
-      }
-    },
-    {
-      "id": "the-wall-nh",
-      "name": "The Wall (Hampton)",
-      "state": "NH",
-      "area": "New Hampshire seacoast",
-      "location": {
-        "lat": 42.918,
-        "lon": -70.808
-      },
-      "break_type": "beach",
-      "facing_deg": 115.0,
-      "offshore_sample_point": {
-        "lat": 42.92,
-        "lon": -70.55
-      },
-      "swell": {
-        "window": {
-          "from_deg": 48.0,
-          "to_deg": 180.0
-        },
-        "ideal_deg": 120.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 48.0,
-          "to_deg": 58.0,
-          "attenuation": 0.45,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 185,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 148.0,
-          "to_deg": 180.0,
-          "attenuation": 0.85,
-          "by": "Cape Ann",
-          "distance_km": 28
-        }
-      ],
-      "wind": {
-        "offshore_deg": 295.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8429489",
-        "station_kind": "subordinate",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "rising"
-      },
-      "buoys": [
-        "44098",
-        "44013"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 1.02 km, type census)",
-        "facing": "adopted 115: ring-mean 117 and open-arc mid 114 agree (hand 95)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 48-180 (was 40-185)"
-      }
-    },
-    {
-      "id": "jenness-nh",
-      "name": "Jenness Beach",
-      "state": "NH",
-      "area": "New Hampshire seacoast",
-      "location": {
-        "lat": 43.006,
-        "lon": -70.735
-      },
-      "break_type": "beach",
-      "facing_deg": 110,
-      "offshore_sample_point": {
-        "lat": 42.98,
-        "lon": -70.5
-      },
-      "swell": {
-        "window": {
-          "from_deg": 36.0,
-          "to_deg": 170.0
-        },
-        "ideal_deg": 110.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 44.0,
-          "to_deg": 60.0,
-          "attenuation": 0.45,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 163,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 100.0,
-          "to_deg": 104.0,
-          "attenuation": 0.6,
-          "by": "Isles of Shoals",
-          "distance_km": 10,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 152.0,
-          "to_deg": 162.0,
-          "attenuation": 0.6,
-          "by": "Cape Cod",
-          "distance_km": 120,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 164.0,
-          "to_deg": 192.0,
-          "attenuation": 0.85,
-          "by": "Cape Ann",
-          "distance_km": 36
-        }
-      ],
-      "wind": {
-        "offshore_deg": 290.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8429489",
-        "station_kind": "subordinate",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44098",
-        "44013"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 3.13 km, type beach_resort)",
-        "facing": "kept hand value 110: estimators disagree (ring-mean 139, open-arc mid 114) \u2014 check on a chart",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 36-192 (was 30-170)"
-      }
-    },
-    {
-      "id": "long-sands-me",
-      "name": "Long Sands (York)",
-      "state": "ME",
-      "area": "Southern Maine",
-      "location": {
-        "lat": 43.1641,
-        "lon": -70.6184
-      },
-      "break_type": "beach",
-      "facing_deg": 135.0,
-      "offshore_sample_point": {
-        "lat": 43.1,
-        "lon": -70.4
-      },
-      "swell": {
-        "window": {
-          "from_deg": 110.0,
-          "to_deg": 174.0
-        },
-        "ideal_deg": 135.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 160.0,
-          "to_deg": 174.0,
-          "attenuation": 0.45,
-          "by": "Cape Cod",
-          "distance_km": 159,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 315.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8419528",
-        "station_kind": "subordinate",
-        "preferred": [
-          "low",
-          "mid"
-        ],
-        "phase": "rising",
-        "notes": "Very flat beach; fat and slow at high."
-      },
-      "buoys": [
-        "44098",
-        "44013"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "adopted 135: ring-mean 130 and open-arc mid 142 agree (hand 115)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 110-174 (was 60-195)"
-      }
-    },
-    {
-      "id": "goochs-me",
-      "name": "Gooch's Beach (Kennebunk)",
-      "state": "ME",
-      "area": "Southern Maine",
-      "location": {
-        "lat": 43.348,
-        "lon": -70.47
-      },
-      "break_type": "beach",
-      "facing_deg": 175.0,
-      "offshore_sample_point": {
-        "lat": 43.25,
-        "lon": -70.3
-      },
-      "swell": {
-        "window": {
-          "from_deg": 112.0,
-          "to_deg": 220.0
-        },
-        "ideal_deg": 175.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 166.0,
-          "to_deg": 220.0,
-          "attenuation": 0.95,
-          "by": "Cape Ann",
-          "distance_km": 76
-        }
-      ],
-      "wind": {
-        "offshore_deg": 355.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8418911",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44098",
-        "44007"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode None km, type None)",
-        "facing": "adopted 175: ring-mean 185 and open-arc mid 166 agree (hand 135)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 112-220 (was 100-230)"
-      }
-    },
-    {
-      "id": "old-orchard-me",
-      "name": "Old Orchard Beach",
-      "state": "ME",
-      "area": "Southern Maine",
-      "location": {
-        "lat": 43.517,
-        "lon": -70.377
-      },
-      "break_type": "beach",
-      "facing_deg": 120,
-      "offshore_sample_point": {
-        "lat": 43.45,
-        "lon": -70.15
-      },
-      "swell": {
-        "window": {
-          "from_deg": 68.0,
-          "to_deg": 180.0
-        },
-        "ideal_deg": 120,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 9,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 148.0,
-          "to_deg": 210.0,
-          "attenuation": 0.95,
-          "by": "Cape Elizabeth",
-          "distance_km": 6
-        }
-      ],
-      "wind": {
-        "offshore_deg": 300,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8418557",
-        "station_kind": "subordinate",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any"
-      },
-      "buoys": [
-        "44098",
-        "44007"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "kept hand value (geocode 1.98 km, type census)",
-        "facing": "hand value within 15\u00b0 of computed (128)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 68-186 (was 50-180)"
-      }
-    },
-    {
-      "id": "higgins-me",
-      "name": "Higgins Beach",
-      "state": "ME",
-      "area": "Portland",
-      "location": {
-        "lat": 43.5613,
-        "lon": -70.2729
-      },
-      "break_type": "beach",
-      "facing_deg": 175.0,
-      "offshore_sample_point": {
-        "lat": 43.45,
-        "lon": -70.15
-      },
-      "swell": {
-        "window": {
-          "from_deg": 138.0,
-          "to_deg": 216.0
-        },
-        "ideal_deg": 175.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 172.0,
-          "to_deg": 198.0,
-          "attenuation": 0.64,
-          "by": "Cape Cod",
-          "distance_km": 170,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 200.0,
-          "to_deg": 216.0,
-          "attenuation": 0.6,
-          "by": "Cape Elizabeth",
-          "distance_km": 14,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 355.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8418445",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "rising",
-        "notes": "Rivermouth left at the north end; sandbars at mid tide."
-      },
-      "buoys": [
-        "44098",
-        "44007"
-      ],
-      "skill": "intermediate",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "adopted 175: ring-mean 173 and open-arc mid 177 agree (hand 150)",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 138-216 (was 95-225)"
-      }
-    },
-    {
-      "id": "popham-me",
-      "name": "Popham Beach",
-      "state": "ME",
-      "area": "Midcoast Maine",
-      "location": {
-        "lat": 43.7483,
-        "lon": -69.7797
-      },
-      "break_type": "beach",
-      "facing_deg": 175,
-      "offshore_sample_point": {
-        "lat": 43.6,
-        "lon": -69.75
-      },
-      "swell": {
-        "window": {
-          "from_deg": 100.0,
-          "to_deg": 190.0
-        },
-        "ideal_deg": 158.0,
-        "angle_tolerance_deg": 35,
-        "min_period_s": 6,
-        "ideal_period_s": 10,
-        "min_height_m": 0.6,
-        "ideal_height_m": 1.5,
-        "max_height_m": 3.0
-      },
-      "shadow_sectors": [
-        {
-          "from_deg": 154.0,
-          "to_deg": 166.0,
-          "attenuation": 0.6,
-          "by": "Monhegan / midcoast islands",
-          "distance_km": 4,
-          "min_period_s": 12
-        },
-        {
-          "from_deg": 184.0,
-          "to_deg": 200.0,
-          "attenuation": 0.45,
-          "by": "Cape Cod",
-          "distance_km": 208,
-          "min_period_s": 12
-        }
-      ],
-      "wind": {
-        "offshore_deg": 355.0,
-        "offshore_tolerance_deg": 60,
-        "max_onshore_kts": 12,
-        "max_cross_kts": 15,
-        "glassy_below_kts": 5
-      },
-      "tide": {
-        "station_id": "8418150",
-        "station_kind": "reference",
-        "preferred": [
-          "mid",
-          "high"
-        ],
-        "phase": "any",
-        "notes": "Nearest verified reference station is Portland (~35 km); look for a Fort Popham subordinate in mdapi."
-      },
-      "buoys": [
-        "44007",
-        "44098"
-      ],
-      "skill": "beginner",
-      "season": [
-        "fall",
-        "winter",
-        "spring",
-        "summer"
-      ],
-      "confidence": "approximate",
-      "verification": {
-        "date": "2026-09-21",
-        "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
-        "location": "OSM beach node, was 0.0 km away",
-        "facing": "kept hand value 175: estimators disagree (ring-mean 98, open-arc mid 123) \u2014 check on a chart",
-        "shadows": "ray-cast from GLOBE land mask, 2\u00b0 rays to 250 km",
-        "window": "clipped to open-sea arc 88-158 (was 100-230)"
-      }
+     "from_deg": 182.0,
+     "to_deg": 232.0,
+     "attenuation": 0.95,
+     "by": "Long Island / Montauk",
+     "distance_km": 32
     }
-  ]
+   ],
+   "wind": {
+    "offshore_deg": 0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8458694",
+    "station_kind": "subordinate",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44097",
+    "44008"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "kept hand value (geocode 3.13 km, type beach)",
+    "facing": "hand value within 15° of computed (184)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 102-232"
+   }
+  },
+  {
+   "id": "south-beach-katama-ma",
+   "name": "South Beach (Katama)",
+   "state": "MA",
+   "area": "Martha's Vineyard",
+   "location": {
+    "lat": 41.3494,
+    "lon": -70.5183
+   },
+   "break_type": "beach",
+   "facing_deg": 180,
+   "offshore_sample_point": {
+    "lat": 41.2,
+    "lon": -70.5
+   },
+   "swell": {
+    "window": {
+     "from_deg": 120.0,
+     "to_deg": 240.0
+    },
+    "ideal_deg": 180.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 90.0,
+     "to_deg": 98.0,
+     "attenuation": 0.6,
+     "by": "Martha's Vineyard",
+     "distance_km": 5,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 100.0,
+     "to_deg": 110.0,
+     "attenuation": 0.6,
+     "by": "Nantucket",
+     "distance_km": 22,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 0.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8448558",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44008",
+    "44097"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "summer",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.01 km away",
+    "facing": "hand value within 15° of computed (174)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 90-246"
+   }
+  },
+  {
+   "id": "point-judith-ri",
+   "name": "Point Judith (Lighthouse)",
+   "state": "RI",
+   "area": "Rhode Island south shore",
+   "location": {
+    "lat": 41.361,
+    "lon": -71.4814
+   },
+   "break_type": "point",
+   "facing_deg": 160,
+   "offshore_sample_point": {
+    "lat": 41.25,
+    "lon": -71.45
+   },
+   "swell": {
+    "window": {
+     "from_deg": 110.0,
+     "to_deg": 210.0
+    },
+    "ideal_deg": 165,
+    "angle_tolerance_deg": 25,
+    "min_period_s": 8,
+    "ideal_period_s": 12,
+    "min_height_m": 0.9,
+    "ideal_height_m": 2.0,
+    "max_height_m": 4.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 80.0,
+     "to_deg": 96.0,
+     "attenuation": 0.6,
+     "by": "Elizabeth Islands",
+     "distance_km": 59,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 194.0,
+     "to_deg": 208.0,
+     "attenuation": 0.6,
+     "by": "Block Island",
+     "distance_km": 17,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 224.0,
+     "to_deg": 240.0,
+     "attenuation": 0.6,
+     "by": "Long Island / Montauk",
+     "distance_km": 58,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 340,
+    "offshore_tolerance_deg": 55,
+    "max_onshore_kts": 15,
+    "max_cross_kts": 18,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8455083",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44097",
+    "44008"
+   ],
+   "skill": "advanced",
+   "season": [
+    "fall",
+    "winter"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM lighthouse node, was 0.0 km away",
+    "facing": "hand value within 15° of computed (165)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 80-240"
+   }
+  },
+  {
+   "id": "matunuck-ri",
+   "name": "Matunuck",
+   "state": "RI",
+   "area": "Rhode Island south shore",
+   "location": {
+    "lat": 41.3746,
+    "lon": -71.5508
+   },
+   "break_type": "reef",
+   "facing_deg": 170,
+   "offshore_sample_point": {
+    "lat": 41.25,
+    "lon": -71.45
+   },
+   "swell": {
+    "window": {
+     "from_deg": 120.0,
+     "to_deg": 220.0
+    },
+    "ideal_deg": 175,
+    "angle_tolerance_deg": 25,
+    "min_period_s": 7,
+    "ideal_period_s": 11,
+    "min_height_m": 0.7,
+    "ideal_height_m": 1.8,
+    "max_height_m": 3.5
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 180.0,
+     "to_deg": 192.0,
+     "attenuation": 0.6,
+     "by": "Block Island",
+     "distance_km": 17,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 218.0,
+     "to_deg": 236.0,
+     "attenuation": 0.85,
+     "by": "Long Island / Montauk",
+     "distance_km": 53,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 350,
+    "offshore_tolerance_deg": 55,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8455083",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "rising",
+    "avoid": [
+     "low"
+    ],
+    "notes": "Rocky bottom exposed at dead low."
+   },
+   "buoys": [
+    "44097",
+    "44008"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.0 km away",
+    "facing": "hand value within 15° of computed (170)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 104-236"
+   }
+  },
+  {
+   "id": "narragansett-town-beach-ri",
+   "name": "Narragansett Town Beach",
+   "state": "RI",
+   "area": "Rhode Island south shore",
+   "location": {
+    "lat": 41.4364,
+    "lon": -71.4534
+   },
+   "break_type": "beach",
+   "facing_deg": 120,
+   "offshore_sample_point": {
+    "lat": 41.35,
+    "lon": -71.3
+   },
+   "swell": {
+    "window": {
+     "from_deg": 90.0,
+     "to_deg": 170.0
+    },
+    "ideal_deg": 140.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.5,
+    "ideal_height_m": 1.2,
+    "max_height_m": 2.5
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 84.0,
+     "to_deg": 104.0,
+     "attenuation": 0.85,
+     "by": "Elizabeth Islands",
+     "distance_km": 52,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 300.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 10,
+    "max_cross_kts": 14,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8455083",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44097"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.0 km away",
+    "facing": "hand value within 15° of computed (130)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 76-170"
+   }
+  },
+  {
+   "id": "ruggles-ri",
+   "name": "Ruggles",
+   "state": "RI",
+   "area": "Newport",
+   "location": {
+    "lat": 41.47,
+    "lon": -71.311
+   },
+   "break_type": "reef",
+   "facing_deg": 165,
+   "offshore_sample_point": {
+    "lat": 41.35,
+    "lon": -71.3
+   },
+   "swell": {
+    "window": {
+     "from_deg": 110.0,
+     "to_deg": 180.0
+    },
+    "ideal_deg": 152.0,
+    "angle_tolerance_deg": 25,
+    "min_period_s": 9,
+    "ideal_period_s": 13,
+    "min_height_m": 1.2,
+    "ideal_height_m": 2.5,
+    "max_height_m": 6.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 80.0,
+     "to_deg": 96.0,
+     "attenuation": 0.6,
+     "by": "Sakonnet Point",
+     "distance_km": 10,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 98.0,
+     "to_deg": 112.0,
+     "attenuation": 0.6,
+     "by": "Elizabeth Islands",
+     "distance_km": 42,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 345,
+    "offshore_tolerance_deg": 50,
+    "max_onshore_kts": 15,
+    "max_cross_kts": 18,
+    "glassy_below_kts": 6
+   },
+   "tide": {
+    "station_id": "8452660",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any",
+    "avoid": [
+     "low"
+    ],
+    "notes": "Shallow rock ledge; needs water on it."
+   },
+   "buoys": [
+    "44097",
+    "44008"
+   ],
+   "skill": "expert",
+   "season": [
+    "fall",
+    "winter"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "kept hand value (geocode 0.42 km, type tertiary)",
+    "facing": "kept hand value 165: computed 117 but reef / land fraction 0.83 makes the 1 km mask unreliable",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 82-152 (was 110-180)"
+   }
+  },
+  {
+   "id": "second-beach-ri",
+   "name": "Second Beach (Sachuest)",
+   "state": "RI",
+   "area": "Newport",
+   "location": {
+    "lat": 41.484,
+    "lon": -71.253
+   },
+   "break_type": "beach",
+   "facing_deg": 185,
+   "offshore_sample_point": {
+    "lat": 41.35,
+    "lon": -71.2
+   },
+   "swell": {
+    "window": {
+     "from_deg": 130.0,
+     "to_deg": 238.0
+    },
+    "ideal_deg": 180,
+    "angle_tolerance_deg": 30,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.5,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 100.0,
+     "to_deg": 118.0,
+     "attenuation": 0.85,
+     "by": "Sakonnet Point",
+     "distance_km": 6,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 214.0,
+     "to_deg": 224.0,
+     "attenuation": 0.6,
+     "by": "Block Island",
+     "distance_km": 40,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 5,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8452660",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44097",
+    "44008"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "kept hand value (geocode None km, type None)",
+    "facing": "hand value within 15° of computed (171)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 100-238"
+   }
+  },
+  {
+   "id": "horseneck-ma",
+   "name": "Horseneck Beach",
+   "state": "MA",
+   "area": "South Coast",
+   "location": {
+    "lat": 41.5112,
+    "lon": -71.0828
+   },
+   "break_type": "beach",
+   "facing_deg": 175,
+   "offshore_sample_point": {
+    "lat": 41.35,
+    "lon": -71.05
+   },
+   "swell": {
+    "window": {
+     "from_deg": 130.0,
+     "to_deg": 224.0
+    },
+    "ideal_deg": 180.0,
+    "angle_tolerance_deg": 30,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [],
+   "wind": {
+    "offshore_deg": 355.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8452660",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any",
+    "notes": "Nearest verified reference station is Newport; a Westport subordinate may exist — check mdapi."
+   },
+   "buoys": [
+    "44097",
+    "44008"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.0 km away",
+    "facing": "hand value within 15° of computed (163)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 130-224"
+   }
+  },
+  {
+   "id": "nauset-beach-ma",
+   "name": "Nauset Beach",
+   "state": "MA",
+   "area": "Outer Cape",
+   "location": {
+    "lat": 41.7871,
+    "lon": -69.9359
+   },
+   "break_type": "beach",
+   "facing_deg": 90,
+   "offshore_sample_point": {
+    "lat": 41.8,
+    "lon": -69.75
+   },
+   "swell": {
+    "window": {
+     "from_deg": 20.0,
+     "to_deg": 152.0
+    },
+    "ideal_deg": 95,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.5
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 8.0,
+     "to_deg": 12.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 236,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 270,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8447435",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "rising",
+    "notes": "Sandbars shift every winter; tide preference is seasonal."
+   },
+   "buoys": [
+    "44008",
+    "44090"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.01 km away",
+    "facing": "hand value within 15° of computed (85)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 8-152"
+   }
+  },
+  {
+   "id": "coast-guard-beach-ma",
+   "name": "Coast Guard Beach",
+   "state": "MA",
+   "area": "Outer Cape",
+   "location": {
+    "lat": 41.8451,
+    "lon": -69.9472
+   },
+   "break_type": "beach",
+   "facing_deg": 85,
+   "offshore_sample_point": {
+    "lat": 41.85,
+    "lon": -69.75
+   },
+   "swell": {
+    "window": {
+     "from_deg": 20.0,
+     "to_deg": 160.0
+    },
+    "ideal_deg": 90,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.5
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 358.0,
+     "to_deg": 16.0,
+     "attenuation": 0.64,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 221,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 265,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8447435",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44008",
+    "44090"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.01 km away",
+    "facing": "hand value within 15° of computed (84)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 358-166"
+   }
+  },
+  {
+   "id": "nantasket-ma",
+   "name": "Nantasket Beach",
+   "state": "MA",
+   "area": "South Shore / Boston",
+   "location": {
+    "lat": 42.275,
+    "lon": -70.86
+   },
+   "break_type": "beach",
+   "facing_deg": 40.0,
+   "offshore_sample_point": {
+    "lat": 42.35,
+    "lon": -70.65
+   },
+   "swell": {
+    "window": {
+     "from_deg": 350.0,
+     "to_deg": 95.0
+    },
+    "ideal_deg": 45.0,
+    "angle_tolerance_deg": 30,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 342.0,
+     "to_deg": 28.0,
+     "attenuation": 0.95,
+     "by": "Cape Ann",
+     "distance_km": 26
+    },
+    {
+     "from_deg": 30.0,
+     "to_deg": 36.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 213,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 220.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8443970",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "any",
+    "notes": "Boston tide range ~3 m; high tide swamps the bars."
+   },
+   "buoys": [
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "kept hand value (geocode 0.6 km, type village)",
+    "facing": "hand value within 15° of computed (28)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 342-104"
+   }
+  },
+  {
+   "id": "good-harbor-ma",
+   "name": "Good Harbor Beach",
+   "state": "MA",
+   "area": "Cape Ann",
+   "location": {
+    "lat": 42.6195,
+    "lon": -70.6314
+   },
+   "break_type": "beach",
+   "facing_deg": 120.0,
+   "offshore_sample_point": {
+    "lat": 42.5,
+    "lon": -70.5
+   },
+   "swell": {
+    "window": {
+     "from_deg": 72.0,
+     "to_deg": 164.0
+    },
+    "ideal_deg": 110.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 144.0,
+     "to_deg": 164.0,
+     "attenuation": 0.85,
+     "by": "Cape Cod",
+     "distance_km": 102,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 300.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8441841",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44013",
+    "44098"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.01 km away",
+    "facing": "hand value within 15° of computed (117)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 72-164"
+   }
+  },
+  {
+   "id": "salisbury-ma",
+   "name": "Salisbury Beach",
+   "state": "MA",
+   "area": "North Shore",
+   "location": {
+    "lat": 42.83,
+    "lon": -70.81
+   },
+   "break_type": "beach",
+   "facing_deg": 90,
+   "offshore_sample_point": {
+    "lat": 42.85,
+    "lon": -70.55
+   },
+   "swell": {
+    "window": {
+     "from_deg": 20.0,
+     "to_deg": 160.0
+    },
+    "ideal_deg": 95,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 350.0,
+     "to_deg": 40.0,
+     "attenuation": 0.95,
+     "by": "Isles of Shoals",
+     "distance_km": 16
+    },
+    {
+     "from_deg": 44.0,
+     "to_deg": 54.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 191,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 136.0,
+     "to_deg": 190.0,
+     "attenuation": 0.95,
+     "by": "Cape Ann",
+     "distance_km": 17
+    }
+   ],
+   "wind": {
+    "offshore_deg": 270,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8440273",
+    "station_kind": "reference",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44013",
+    "44098"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: 1.53 km, type village)",
+    "facing": "hand value within 15° of computed (93)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 4-166"
+   }
+  },
+  {
+   "id": "seabrook-nh",
+   "name": "Seabrook Beach",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 42.88,
+    "lon": -70.815
+   },
+   "break_type": "beach",
+   "facing_deg": 95.0,
+   "offshore_sample_point": {
+    "lat": 42.83,
+    "lon": -70.565
+   },
+   "swell": {
+    "window": {
+     "from_deg": 28.0,
+     "to_deg": 160.0
+    },
+    "ideal_deg": 100.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 275.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 32.0,
+     "to_deg": 52.0,
+     "attenuation": 0.64,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 138,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 144.0,
+     "to_deg": 164.0,
+     "attenuation": 0.85,
+     "by": "Cape Ann",
+     "distance_km": 25,
+     "min_period_s": 12
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: 0.85 km, type census)",
+    "facing": "hand value within 15° of computed (90)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 22-164"
+   }
+  },
+  {
+   "id": "hampton-beach-nh",
+   "name": "Hampton Beach",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 42.904,
+    "lon": -70.807
+   },
+   "break_type": "beach",
+   "facing_deg": 100.0,
+   "offshore_sample_point": {
+    "lat": 42.854,
+    "lon": -70.557
+   },
+   "swell": {
+    "window": {
+     "from_deg": 39.0,
+     "to_deg": 165.0
+    },
+    "ideal_deg": 105.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 280.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 39.0,
+     "to_deg": 55.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 153,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 147.0,
+     "to_deg": 195.0,
+     "attenuation": 0.95,
+     "by": "Cape Ann",
+     "distance_km": 24
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: 1.23 km, type census)",
+    "facing": "hand value within 15° of computed (107)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 39-181 (was 33-165)"
+   }
+  },
+  {
+   "id": "the-wall-nh",
+   "name": "The Wall (North Beach)",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 42.923,
+    "lon": -70.801
+   },
+   "break_type": "beach",
+   "facing_deg": 115.0,
+   "offshore_sample_point": {
+    "lat": 42.92,
+    "lon": -70.55
+   },
+   "swell": {
+    "window": {
+     "from_deg": 48.0,
+     "to_deg": 180.0
+    },
+    "ideal_deg": 120.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 46.0,
+     "to_deg": 56.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 172,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 150.0,
+     "to_deg": 210.0,
+     "attenuation": 0.95,
+     "by": "Cape Ann",
+     "distance_km": 14
+    }
+   ],
+   "wind": {
+    "offshore_deg": 295.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: 1.41 km, type quarter)",
+    "facing": "hand value within 15° of computed (114)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 46-188"
+   }
+  },
+  {
+   "id": "plaice-cove-nh",
+   "name": "Plaice Cove",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 42.941,
+    "lon": -70.791
+   },
+   "break_type": "beach",
+   "facing_deg": 110.0,
+   "offshore_sample_point": {
+    "lat": 42.891,
+    "lon": -70.541
+   },
+   "swell": {
+    "window": {
+     "from_deg": 62.0,
+     "to_deg": 170.0
+    },
+    "ideal_deg": 110.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 290.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 154.0,
+     "to_deg": 180.0,
+     "attenuation": 0.85,
+     "by": "Cape Ann",
+     "distance_km": 30,
+     "min_period_s": 12
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: OSM beach node, was 0.44 km away)",
+    "facing": "hand value within 15° of computed (114)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 62-180 (was 36-170)"
+   }
+  },
+  {
+   "id": "jenness-nh",
+   "name": "Jenness State Beach",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 42.968,
+    "lon": -70.768
+   },
+   "break_type": "beach",
+   "facing_deg": 110,
+   "offshore_sample_point": {
+    "lat": 42.98,
+    "lon": -70.5
+   },
+   "swell": {
+    "window": {
+     "from_deg": 52.0,
+     "to_deg": 170.0
+    },
+    "ideal_deg": 110.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 52.0,
+     "to_deg": 56.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 180,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 150.0,
+     "to_deg": 176.0,
+     "attenuation": 0.85,
+     "by": "Cape Ann",
+     "distance_km": 34,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 290.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: 2.03 km, type beach_resort)",
+    "facing": "hand value within 15° of computed (112)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 52-176 (was 36-170)"
+   }
+  },
+  {
+   "id": "rye-rocks-nh",
+   "name": "Rye Rocks",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 42.98,
+    "lon": -70.76
+   },
+   "break_type": "reef",
+   "facing_deg": 100.0,
+   "offshore_sample_point": {
+    "lat": 42.93,
+    "lon": -70.51
+   },
+   "swell": {
+    "window": {
+     "from_deg": 34.0,
+     "to_deg": 160.0
+    },
+    "ideal_deg": 100.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 280.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 44.0,
+     "to_deg": 56.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 155,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 84.0,
+     "to_deg": 88.0,
+     "attenuation": 0.6,
+     "by": "Isles of Shoals",
+     "distance_km": 12,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 152.0,
+     "to_deg": 158.0,
+     "attenuation": 0.6,
+     "by": "Cape Cod",
+     "distance_km": 112,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 160.0,
+     "to_deg": 188.0,
+     "attenuation": 0.85,
+     "by": "Cape Ann",
+     "distance_km": 34
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: 2.53 km, type water)",
+    "facing": "kept hand value 100.0: computed 114 but reef / land fraction 0.65 makes the 1 km mask unreliable",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 34-188 (was 26-160)"
+   }
+  },
+  {
+   "id": "wallis-sands-nh",
+   "name": "Wallis Sands",
+   "state": "NH",
+   "area": "New Hampshire seacoast",
+   "location": {
+    "lat": 43.02,
+    "lon": -70.733
+   },
+   "break_type": "beach",
+   "facing_deg": 120.0,
+   "offshore_sample_point": {
+    "lat": 42.97,
+    "lon": -70.483
+   },
+   "swell": {
+    "window": {
+     "from_deg": 54.0,
+     "to_deg": 180.0
+    },
+    "ideal_deg": 120.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 300.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8429489",
+    "station_kind": "subordinate",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 54.0,
+     "to_deg": 58.0,
+     "attenuation": 0.45,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 174,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 108.0,
+     "to_deg": 112.0,
+     "attenuation": 0.6,
+     "by": "Isles of Shoals",
+     "distance_km": 10,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 154.0,
+     "to_deg": 162.0,
+     "attenuation": 0.6,
+     "by": "Cape Cod",
+     "distance_km": 117,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 164.0,
+     "to_deg": 180.0,
+     "attenuation": 0.6,
+     "by": "Cape Ann",
+     "distance_km": 39,
+     "min_period_s": 12
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: None km, type None)",
+    "facing": "adopted 120: ring-mean 121 and open-arc mid 117 agree (hand 90.0)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 54-180 (was 46-180)"
+   }
+  },
+  {
+   "id": "long-sands-me",
+   "name": "Long Sands",
+   "state": "ME",
+   "area": "Southern Maine",
+   "location": {
+    "lat": 43.163,
+    "lon": -70.615
+   },
+   "break_type": "beach",
+   "facing_deg": 135.0,
+   "offshore_sample_point": {
+    "lat": 43.1,
+    "lon": -70.4
+   },
+   "swell": {
+    "window": {
+     "from_deg": 110.0,
+     "to_deg": 174.0
+    },
+    "ideal_deg": 135.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 160.0,
+     "to_deg": 178.0,
+     "attenuation": 0.64,
+     "by": "Cape Cod",
+     "distance_km": 156,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 315.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8419528",
+    "station_kind": "subordinate",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising",
+    "notes": "Very flat beach; fat and slow at high."
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: OSM beach node, was 0.3 km away)",
+    "facing": "hand value within 15° of computed (131)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 80-182"
+   }
+  },
+  {
+   "id": "ogunquit-me",
+   "name": "Ogunquit Rivermouth",
+   "state": "ME",
+   "area": "Southern Maine",
+   "location": {
+    "lat": 43.248,
+    "lon": -70.592
+   },
+   "break_type": "rivermouth",
+   "facing_deg": 120.0,
+   "offshore_sample_point": {
+    "lat": 43.198,
+    "lon": -70.342
+   },
+   "swell": {
+    "window": {
+     "from_deg": 95.0,
+     "to_deg": 141.0
+    },
+    "ideal_deg": 120.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 300.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8419528",
+    "station_kind": "subordinate",
+    "preferred": [
+     "low",
+     "mid"
+    ],
+    "phase": "rising"
+   },
+   "buoys": [
+    "44098",
+    "44013"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: OSM beach node, was 0.56 km away)",
+    "facing": "kept hand value 120.0: computed 95 but rivermouth / land fraction 0.76 makes the 1 km mask unreliable",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 65-141 (was 95-159)"
+   }
+  },
+  {
+   "id": "wells-me",
+   "name": "Wells Beach",
+   "state": "ME",
+   "area": "Southern Maine",
+   "location": {
+    "lat": 43.312,
+    "lon": -70.56
+   },
+   "break_type": "beach",
+   "facing_deg": 105.0,
+   "offshore_sample_point": {
+    "lat": 43.262,
+    "lon": -70.31
+   },
+   "swell": {
+    "window": {
+     "from_deg": 51.0,
+     "to_deg": 150.0
+    },
+    "ideal_deg": 105.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 285.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8418911",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44007"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 27.0,
+     "to_deg": 73.0,
+     "attenuation": 0.95,
+     "by": "Cape Elizabeth",
+     "distance_km": 4
+    },
+    {
+     "from_deg": 177.0,
+     "to_deg": 185.0,
+     "attenuation": 0.45,
+     "by": "Cape Cod",
+     "distance_km": 152,
+     "min_period_s": 12
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: OSM beach node, was 0.4 km away)",
+    "facing": "adopted 105: ring-mean 103 and open-arc mid 103 agree (hand 120.0)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 51-155 (was 42-150)"
+   }
+  },
+  {
+   "id": "goochs-me",
+   "name": "Gooch's Beach",
+   "state": "ME",
+   "area": "Southern Maine",
+   "location": {
+    "lat": 43.344,
+    "lon": -70.485
+   },
+   "break_type": "beach",
+   "facing_deg": 175.0,
+   "offshore_sample_point": {
+    "lat": 43.25,
+    "lon": -70.3
+   },
+   "swell": {
+    "window": {
+     "from_deg": 128.0,
+     "to_deg": 220.0
+    },
+    "ideal_deg": 175.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 166.0,
+     "to_deg": 202.0,
+     "attenuation": 0.64,
+     "by": "Cape Cod",
+     "distance_km": 142
+    },
+    {
+     "from_deg": 204.0,
+     "to_deg": 250.0,
+     "attenuation": 0.95,
+     "by": "Isles of Shoals",
+     "distance_km": 7
+    }
+   ],
+   "wind": {
+    "offshore_deg": 355.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8418911",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44007"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: None km, type None)",
+    "facing": "hand value within 15° of computed (178)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 128-250 (was 112-220)"
+   }
+  },
+  {
+   "id": "fortunes-rocks-me",
+   "name": "Fortunes Rocks",
+   "state": "ME",
+   "area": "Southern Maine",
+   "location": {
+    "lat": 43.411,
+    "lon": -70.382
+   },
+   "break_type": "beach",
+   "facing_deg": 110.0,
+   "offshore_sample_point": {
+    "lat": 43.361,
+    "lon": -70.132
+   },
+   "swell": {
+    "window": {
+     "from_deg": 57.0,
+     "to_deg": 155.0
+    },
+    "ideal_deg": 110.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "wind": {
+    "offshore_deg": 290.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8418911",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44007"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "shadow_sectors": [
+    {
+     "from_deg": 57.0,
+     "to_deg": 67.0,
+     "attenuation": 0.6,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 114,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 169.0,
+     "to_deg": 183.0,
+     "attenuation": 0.45,
+     "by": "Cape Cod",
+     "distance_km": 171,
+     "min_period_s": 12
+    }
+   ],
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: OSM beach node, was 2.28 km away)",
+    "facing": "adopted 110: ring-mean 103 and open-arc mid 120 agree (hand 150.0)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 57-183 (was 47-155)"
+   }
+  },
+  {
+   "id": "old-orchard-me",
+   "name": "Old Orchard Beach",
+   "state": "ME",
+   "area": "Southern Maine",
+   "location": {
+    "lat": 43.517,
+    "lon": -70.377
+   },
+   "break_type": "beach",
+   "facing_deg": 120,
+   "offshore_sample_point": {
+    "lat": 43.45,
+    "lon": -70.15
+   },
+   "swell": {
+    "window": {
+     "from_deg": 68.0,
+     "to_deg": 180.0
+    },
+    "ideal_deg": 120,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 9,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 148.0,
+     "to_deg": 210.0,
+     "attenuation": 0.95,
+     "by": "Cape Elizabeth",
+     "distance_km": 6
+    }
+   ],
+   "wind": {
+    "offshore_deg": 300,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8418557",
+    "station_kind": "subordinate",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any"
+   },
+   "buoys": [
+    "44098",
+    "44007"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "kept hand value (geocode 1.98 km, type census)",
+    "facing": "hand value within 15° of computed (128)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "hand window lies inside open-sea arc 68-186"
+   }
+  },
+  {
+   "id": "higgins-me",
+   "name": "Higgins Beach",
+   "state": "ME",
+   "area": "Portland",
+   "location": {
+    "lat": 43.562,
+    "lon": -70.275
+   },
+   "break_type": "beach",
+   "facing_deg": 175.0,
+   "offshore_sample_point": {
+    "lat": 43.45,
+    "lon": -70.15
+   },
+   "swell": {
+    "window": {
+     "from_deg": 138.0,
+     "to_deg": 212.0
+    },
+    "ideal_deg": 175.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 172.0,
+     "to_deg": 198.0,
+     "attenuation": 0.64,
+     "by": "Cape Cod",
+     "distance_km": 170,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 200.0,
+     "to_deg": 212.0,
+     "attenuation": 0.6,
+     "by": "Cape Elizabeth",
+     "distance_km": 14,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 355.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8418445",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "rising",
+    "notes": "Rivermouth left at the north end; sandbars at mid tide."
+   },
+   "buoys": [
+    "44098",
+    "44007"
+   ],
+   "skill": "intermediate",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-22",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "Reed's consolidated regional dataset 2026-09-22 (geocode check: OSM beach node, was 0.19 km away)",
+    "facing": "hand value within 15° of computed (172)",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 136-212 (was 138-216)"
+   }
+  },
+  {
+   "id": "popham-me",
+   "name": "Popham Beach",
+   "state": "ME",
+   "area": "Midcoast Maine",
+   "location": {
+    "lat": 43.7483,
+    "lon": -69.7797
+   },
+   "break_type": "beach",
+   "facing_deg": 175,
+   "offshore_sample_point": {
+    "lat": 43.6,
+    "lon": -69.75
+   },
+   "swell": {
+    "window": {
+     "from_deg": 100.0,
+     "to_deg": 190.0
+    },
+    "ideal_deg": 158.0,
+    "angle_tolerance_deg": 35,
+    "min_period_s": 6,
+    "ideal_period_s": 10,
+    "min_height_m": 0.6,
+    "ideal_height_m": 1.5,
+    "max_height_m": 3.0
+   },
+   "shadow_sectors": [
+    {
+     "from_deg": 154.0,
+     "to_deg": 166.0,
+     "attenuation": 0.6,
+     "by": "Monhegan / midcoast islands",
+     "distance_km": 4,
+     "min_period_s": 12
+    },
+    {
+     "from_deg": 184.0,
+     "to_deg": 200.0,
+     "attenuation": 0.45,
+     "by": "Cape Cod",
+     "distance_km": 208,
+     "min_period_s": 12
+    }
+   ],
+   "wind": {
+    "offshore_deg": 355.0,
+    "offshore_tolerance_deg": 60,
+    "max_onshore_kts": 12,
+    "max_cross_kts": 15,
+    "glassy_below_kts": 5
+   },
+   "tide": {
+    "station_id": "8418150",
+    "station_kind": "reference",
+    "preferred": [
+     "mid",
+     "high"
+    ],
+    "phase": "any",
+    "notes": "Nearest verified reference station is Portland (~35 km); look for a Fort Popham subordinate in mdapi."
+   },
+   "buoys": [
+    "44007",
+    "44098"
+   ],
+   "skill": "beginner",
+   "season": [
+    "fall",
+    "winter",
+    "spring",
+    "summer"
+   ],
+   "confidence": "approximate",
+   "verification": {
+    "date": "2026-09-21",
+    "method": "verify_spots.py: Nominatim + GLOBE 1 km land mask",
+    "location": "OSM beach node, was 0.0 km away",
+    "facing": "kept hand value 175: estimators disagree (ring-mean 98, open-arc mid 123) — check on a chart",
+    "shadows": "ray-cast from GLOBE land mask, 2° rays to 250 km",
+    "window": "clipped to open-sea arc 88-158 (was 100-190)"
+   }
+  }
+ ]
 }

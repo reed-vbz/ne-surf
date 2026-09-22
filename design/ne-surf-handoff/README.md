@@ -28,3 +28,11 @@ Implement the forecast screen in design/ne-surf-handoff/.
 - Swell / wind data source and the break-ranking model.
 - Real break coordinates (mock geography is approximate).
 - Target platform (web / React Native). Spec is px-based and platform-agnostic.
+
+
+## v2 — 2026-09-22
+
+Per Reed's UI refactor directive: the three mode chips (Forecast slider / Refraction map / Live buoy feed) were removed from the
+search bar and the Layers map control became the Forecast-drawer control (chart icon, same box). `ui-reference.html` was edited
+accordingly and `ui-reference.png` re-rendered from it with `node scripts/render-reference.mjs` (Chrome for Testing, 390×844 @2x).
+The previous PNG is kept as `ui-reference-v1-2026-09-21.png`. The glass forecast drawer is closed in the reference (phone default).

@@ -89,21 +89,27 @@ npm run dev            # http://localhost:3000
 npm test               # score-engine unit tests (vitest)
 ```
 
-## New Hampshire Sandbox — 5-layer marine architecture (`/sandbox/nh`)
+## Map engine — 5-layer permanent marine architecture (`/`)
 
-The architecture of record for all future map work (Reed's Core Mapping Architecture directive), implemented keyless on
-MapLibre GL + deck.gl `MapboxOverlay` (interleaved) + self-hosted MVT:
+MapLibre GL + deck.gl `MapboxOverlay` (interleaved) + self-hosted MVT, in `components/map/MarineMap.tsx`. All five layers
+render concurrently; there are no layer toggles. Region (Reed's 2026-09-22 directive): 42.80–43.60 N, −70.85–−70.20 W
+(Salisbury MA → Scarborough ME); the bbox bounds the default camera, the vector-tile source and the deck.gl physics.
 
 | Layer | Source | Rendering |
 |---|---|---|
-| L0 bathymetric base | NOAA CRM 3″ isobaths as *nested* contours cut from one smoothed field, speckle < 16 cells absorbed, then differenced so adjacent bins share exact edges (`workers/nesurf/sandbox_nh.py` → `public/tiles/nh/{z}/{x}/{y}.pbf` z8–13, layer `bathy`) | MapLibre `fill`, `interpolate` on `min_depth`: #00E5FF (0–5 m) → #0099CC → #0B192C |
-| L1 physics | HRRR wind + WW3 swell fields → the swell is Snell-refracted on the CRM grid inside the 45 m contour, then RK2 streamlines (`lib/streamlines.ts`); CRM ray tracing for crests (`lib/refraction.ts`) | deck.gl `TripsLayer` comets: each streamline has a random phase and is emitted in loop-spaced copies so heads flow continuously (no lockstep pulses); density thins with zoom; `PathLayer` crest lines only inside the 15 m contour, caustic folds dropped, Chaikin-smoothed |
+| L0 ocean floor | NOAA CRM 3″ isobaths as *nested* contours cut from one smoothed field, speckle < 16 cells absorbed, then differenced so adjacent bins share exact edges (`workers/nesurf/sandbox_nh.py` → `public/tiles/nh/{z}/{x}/{y}.pbf` z8–13, layer `bathy`) | MapLibre `fill`, `interpolate` on `min_depth`: 0 m #00E5FF → 20 m #0099CC → 100 m+ #0B192C |
+| L1 swell + wind | HRRR wind + WW3 swell fields → the swell is Snell-refracted on the CRM grid inside the 45 m contour, then RK2 streamlines (`lib/streamlines.ts`); CRM ray tracing for crests (`lib/refraction.ts`) | deck.gl `TripsLayer` comets: each streamline has a random phase and is emitted in loop-spaced copies so heads flow continuously (no lockstep pulses); density thins with zoom; `PathLayer` crest lines only inside the 15 m contour, caustic folds dropped, Chaikin-smoothed |
 | L2 nearshore ribbon | 100 m high-water-mark segments with land→sea normal + exposure (`public/data/nh/ribbon.geojson`, MVT layer `ribbon`) | deck.gl `PathLayer`, #00FF88 / #FFB800 / #FF3366 by wind-to-beach angle |
-| L3 land mask | CRM open-water land polygons (MVT layer `land`, `land.geojson`, `ocean.geojson`) | zero bleed at the data level (streamlines only over CRM water, rays stop at the shore) + optional opaque chart-land fill |
-| L4 annotations | `spots.geojson` | deck.gl `ScatterplotLayer` pulses + HTML pins; hover → React tooltip (height, period, wind, angle off the normal, tier) |
+| L3 land mask | the exact complement of the 0 m isobath (MVT layer `land`; never simplified client-side) | opaque antialiased `fill` ABOVE L0–L2 — zero bleed; L1 geometry additionally never exists over land |
+| L4 annotations | `data/spots.json` (the 14 regional breaks), NDBC buoys | deck.gl pulses + buoy status dots, HTML pins + callouts, React hover tooltips, and the glassmorphism forecast drawer (`components/screen/ForecastDrawer.tsx`: 24-hour sparklines for height / period / wind / tide, 7-day overview; hovering an hour moves the timeline knob and swaps the map's vector fields to that hour) |
 
-Known limit: deck.gl 9.4's `MaskExtension` does not render in interleaved mode with MapLibre 6, so the mask is enforced by
-the data rather than the GPU; MapLibre 6 also hides `map.transform`, which the overlay shims.
+Known limits: deck.gl 9.4's `MaskExtension` does not render in interleaved mode with MapLibre 6, so the mask is enforced by
+the land fill + the data rather than a GPU mask; MapLibre 6 hides `map.transform`, which the overlay shims. The directive's
+Mapbox Bathymetry v2 source needs a Mapbox token the project does not have; the CRM tiles are finer (90 m) and keyless.
+
+Chrome: `design/ne-surf-handoff/ui-reference.html` is the source of truth (v2 2026-09-22: mode chips removed, the Layers
+control became the Forecast control). `node scripts/render-reference.mjs` re-renders `ui-reference.png` from it;
+`node scripts/pixel-diff.mjs 'http://localhost:3000/?ref=1'` diffs the build against it.
 
 ## Map overlays
 

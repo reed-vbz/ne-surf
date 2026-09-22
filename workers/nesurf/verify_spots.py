@@ -42,7 +42,9 @@ GEOCODE_QUERIES = {
     "nobadeer-ma": "Nobadeer Beach, Nantucket, MA", "nauset-beach-ma": "Nauset Beach, Orleans, MA",
     "coast-guard-beach-ma": "Coast Guard Beach, Eastham, MA", "nantasket-ma": "Nantasket Beach, Hull, MA",
     "good-harbor-ma": "Good Harbor Beach, Gloucester, MA", "salisbury-ma": "Salisbury Beach, Salisbury, MA",
-    "the-wall-nh": "Hampton Beach, Hampton, NH", "jenness-nh": "Jenness State Beach, Rye, NH",
+    "the-wall-nh": "North Beach, Hampton, NH", "jenness-nh": "Jenness State Beach, Rye, NH", "seabrook-nh": "Seabrook Beach, Seabrook, NH",
+    "hampton-beach-nh": "Hampton Beach, Hampton, NH", "plaice-cove-nh": "Plaice Cove, Hampton, NH", "rye-rocks-nh": "Rye Harbor, Rye, NH", "wallis-sands-nh": "Wallis Sands State Beach, Rye, NH",
+    "ogunquit-me": "Ogunquit Beach, Ogunquit, ME", "wells-me": "Wells Beach, Wells, ME", "fortunes-rocks-me": "Fortunes Rocks Beach, Biddeford, ME",
     "long-sands-me": "Long Sands Beach, York, ME", "goochs-me": "Gooch's Beach, Kennebunk, ME",
     "old-orchard-me": "Old Orchard Beach, ME", "higgins-me": "Higgins Beach, Scarborough, ME", "popham-me": "Popham Beach, Phippsburg, ME",
 }

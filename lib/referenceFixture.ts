@@ -11,7 +11,5 @@ export const REFERENCE_MODEL: ScreenModel = {
     { id: "ruggles", name: "RUGGLES", body: "6-8ft @ 14s (SSW) | NNE Wind", left: 92, top: 566 },
   ],
   hotspot: { rating: "Excellent", ratingColor: "#41c776", line1: "Higgins: 4-6ft @ 12s", line2: "NW wind · Optimal", pinColor: "#41c776" },
-  mode: "forecast",
-  activeMode: null,
   searchValue: "",
 };
