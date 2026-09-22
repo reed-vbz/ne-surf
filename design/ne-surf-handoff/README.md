@@ -41,3 +41,14 @@ The previous PNG is kept as `ui-reference-v1-2026-09-21.png`. The glass forecast
 
 The search bar row became the anticipatory pill band: transparent band, a floating glass pill (backdrop-blur, black/40, white/20 border) with the
 best break for the active hour. `ui-reference.png` re-rendered again. The polar radar and the drawer are dynamic widgets and stay out of the fixture.
+
+## v4 — 2026-09-22 (later)
+
+Reed: 'clean up the upper part, glass header with the full forecast above the timeline'. Header, second row (full-forecast strip replacing the pill), timeline card and
+forecast button are glass (backdrop-blur over the map); the layer info card is gone. `ui-reference.png` re-rendered.
+
+## v5 — 2026-09-22 (later)
+
+Reed: 'not much space — size and format it like it was designed for an OS'. The bottom-left legends and bottom-right hotspot card became a
+widget dock: one row of uniform glass cards (148×164, radius 12, 8-pt gaps) that scroll-snaps horizontally on phones and sits as one row on
+desktop. The fixture shows Hotspot + Legend; the radar and spectra cards are dynamic and sit between them in the live app.

@@ -32,6 +32,6 @@ const top = [...grid].map((v, i) => [v, i]).filter(([v]) => v > 0).sort((p, q) =
   .map(([v, i]) => `  (${(i % cols) * cell / 2},${Math.floor(i / cols) * cell / 2}) 1x-px cell: ${v}`);
 console.log(`mismatch: ${n} of ${a.width * a.height} px (${(100 * n / (a.width * a.height)).toFixed(2)}%)`);
 // chrome regions (2x px boxes): these must stay at the glyph-antialiasing floor established in Phase A
-const regions = { header: [0, 0, 780, 168], toolbar: [0, 168, 780, 256], timeline: [12, 272, 768, 408], layerCard: [16, 424, 392, 512], layersBtn: [684, 508, 764, 588], legends: [24, 1388, 336, 1676], hotspot: [460, 1388, 764, 1676] };
+const regions = { header: [0, 0, 780, 168], strip: [0, 168, 780, 256], timeline: [12, 272, 768, 408], forecastBtn: [684, 508, 764, 588], dockHotspot: [16, 1344, 312, 1672], dockLegend: [328, 1344, 624, 1672] };
 for (const [name, [x0, y0, x1, y1]] of Object.entries(regions)) { let c = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * a.width + x) * 4; if (diff.data[i] === 255 && diff.data[i + 1] === 0 && diff.data[i + 2] === 255) c++; } console.log(`  ${name.padEnd(10)} ${String(c).padStart(6)} px (${(100 * c / ((x1 - x0) * (y1 - y0))).toFixed(2)}%)`); }
 console.log("worst 10×10 (1x) cells [x,y]:\n" + top.join("\n"));
