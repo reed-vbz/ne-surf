@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import skfmm
+import heapq
 from PIL import Image
 from scipy import ndimage
 
@@ -39,12 +39,10 @@ OUT = REPO_ROOT / "public" / "cache" / "wavefield"
 WW3 = REPO_ROOT / "public" / "cache" / "ww3"
 STRIDE = 2            # 2 CRM cells → ≈180 m texture cells (480 × 390 for the region)
 DEPTH_SIGMA = 1.0     # Gaussian smoothing of the depth field (cells) before the speed map: no stair-steps along contours
-T_SIGMA = 0.8         # light Gaussian on the travel-time field over water (cells)
 T_SCALE = 0.25        # seconds per 16-bit unit (max ≈ 4.5 h of travel)
 H_MAX = 10.0          # metres at B = 255
-SDF_SCALE = 16.0      # metres per unit in A (±2 km)
 GAMMA = 0.78          # depth-limited breaking H / h
-CF = 0.012            # bottom friction coefficient (Collins-type decay, applied over shallow travel)
+CF = 0.012            # empirical energy damping velocity (m/s); rate = CF / depth, not a validated Collins coefficient
 
 
 def load_depth():
@@ -57,8 +55,8 @@ def load_depth():
 def phase_speed(h, T):
     """Linear-theory phase speed for depth h (m, >0) and period T (s); Newton on the dispersion relation."""
     h = np.maximum(h, 0.05); w = 2 * math.pi / T
-    k = w * w / G * np.ones_like(h)
-    for _ in range(8):
+    k = np.maximum(w * w / G, w / np.sqrt(G * h))
+    for _ in range(16):
         th = np.tanh(k * h); f = G * k * th - w * w; df = G * th + G * k * h * (1 - th * th); k = k - f / df
     return w / k, k
 
@@ -68,10 +66,10 @@ def group_speed(h, T):
     return c * 0.5 * (1 + 2 * kh / np.sinh(2 * kh))
 
 
-def sdf_metres(water: np.ndarray, res_m: float) -> np.ndarray:
+def sdf_metres(water: np.ndarray, res_m: float | tuple[float, float]) -> np.ndarray:
     """Signed distance to the shoreline: positive over water, negative over land."""
-    d_water = ndimage.distance_transform_edt(water) * res_m
-    d_land = ndimage.distance_transform_edt(~water) * res_m
+    d_water = ndimage.distance_transform_edt(water, sampling=res_m)
+    d_land = ndimage.distance_transform_edt(~water, sampling=res_m)
     return np.where(water, d_water, -d_land)
 
 
@@ -83,41 +81,110 @@ def smooth_over_water(a: np.ndarray, water: np.ndarray, sigma: float) -> np.ndar
     return np.where(water, num / np.maximum(den, 1e-6), a)
 
 
-def travel_time(depth: np.ndarray, water: np.ndarray, T: float, dir_from_deg: float, res_m: float) -> np.ndarray:
-    """Second-order fast-marching arrival time (s) of a swell of period T arriving FROM dir_from_deg, from the up-wave grid
-    edge, on a Gaussian-smoothed depth field; the result is lightly smoothed over water so crests are C¹ across contours."""
-    c, _ = phase_speed(smooth_over_water(depth, water, DEPTH_SIGMA), T); c = np.where(water, c, 1e-3)
-    # zero-time front: the up-wave boundary = the water cells nearest the edge the swell comes from (a 2-cell band)
-    a = math.radians(dir_from_deg); ux, uy = math.sin(a), math.cos(a)           # unit vector pointing TO where it comes from (east, north)
-    ny, nx = depth.shape; yy, xx = np.mgrid[0:ny, 0:nx]
-    proj = xx * ux + yy * uy                                                      # cells with the largest projection are the most up-wave
-    # source band = the up-wave 3 % of water cells: a straight slab perpendicular to the swell direction (a fixed cell margin
-    # off the max would collapse to a corner for oblique directions)
-    band = proj >= np.quantile(proj[water], 0.97)
-    phi = np.where(band & water, -1.0, 1.0)                                       # φ < 0 inside the source band
-    masked = np.ma.MaskedArray(phi, mask=~water)
-    t = skfmm.travel_time(masked, speed=c, dx=res_m, order=2)
-    t = np.ma.filled(t, 0.0)
-    return np.where(water, smooth_over_water(t, water, T_SIGMA), 0.0)
+def metric_spacing(res_deg: float, latitude: float) -> tuple[float, float]:
+    """Array-axis spacing (north/south dy, east/west dx), in metres."""
+    return res_deg * 111320.0, res_deg * 111320.0 * math.cos(math.radians(latitude))
 
 
-def wave_height(depth: np.ndarray, water: np.ndarray, t: np.ndarray, H0: float, T: float, res_m: float) -> np.ndarray:
-    """Shoaling + friction + breaking along the wave's own travel: H = H0 · Ks · Kf, then H ≤ γ h."""
+def inflow_mask(water: np.ndarray, direction: float) -> np.ndarray:
+    a = math.radians(direction); ux, uy = math.sin(a), math.cos(a)
+    source = np.zeros_like(water)
+    if ux > 1e-8: source[:, -1] = True
+    if ux < -1e-8: source[:, 0] = True
+    if uy > 1e-8: source[-1, :] = True
+    if uy < -1e-8: source[0, :] = True
+    return source & water
+
+
+def arrival_from_speed(speed: np.ndarray, water: np.ndarray, direction: float, spacing) -> np.ndarray:
+    """Monotone fast marching with a phased plane-wave Dirichlet inflow boundary.
+
+    Only open inflow edges inject energy. Enclosed water remains unreachable (NaN).
+    The phase offset across two inflow edges preserves oblique wave incidence.
+    """
+    dy, dx = (spacing, spacing) if np.isscalar(spacing) else spacing
+    ny, nx = water.shape; yy, xx = np.mgrid[:ny, :nx]
+    a = math.radians(direction); proj = xx * dx * math.sin(a) + yy * dy * math.cos(a)
+    source = inflow_mask(water, direction)
+    t = np.full(water.shape, np.inf); accepted = np.zeros_like(water)
+    if not source.any(): return np.full(water.shape, np.nan)
+    c0 = float(np.median(speed[source]))
+    t[source] = (proj[source].max() - proj[source]) / max(c0, 1e-3) + T_SCALE
+    heap = [(float(t[y, x]), int(y), int(x)) for y, x in np.argwhere(source)]
+    heapq.heapify(heap)
+    def update(y, x):
+        tx = min(t[y, x-1] if x and accepted[y, x-1] else np.inf,
+                 t[y, x+1] if x+1 < nx and accepted[y, x+1] else np.inf)
+        ty = min(t[y-1, x] if y and accepted[y-1, x] else np.inf,
+                 t[y+1, x] if y+1 < ny and accepted[y+1, x] else np.inf)
+        slow = 1.0 / max(speed[y, x], 1e-3)
+        value = min(tx + dx * slow, ty + dy * slow)
+        if np.isfinite(tx) and np.isfinite(ty):
+            # Shift the quadratic by min(tx,ty) to avoid cancellation at long travel times.
+            m = min(tx, ty); ax, ay = tx-m, ty-m
+            A = 1/dx**2 + 1/dy**2; B = -2*(ax/dx**2 + ay/dy**2)
+            C = ax**2/dx**2 + ay**2/dy**2 - slow**2
+            root = m + (-B + math.sqrt(max(0.0, B*B - 4*A*C))) / (2*A)
+            if root >= max(tx, ty): value = min(value, root)
+        return value
+    while heap:
+        value, y, x = heapq.heappop(heap)
+        if accepted[y, x] or value > t[y, x]: continue
+        accepted[y, x] = True
+        for j, i in ((y-1,x), (y+1,x), (y,x-1), (y,x+1)):
+            if not (0 <= j < ny and 0 <= i < nx) or not water[j,i] or accepted[j,i] or source[j,i]: continue
+            candidate = update(j,i)
+            if candidate < t[j,i]:
+                t[j,i] = candidate; heapq.heappush(heap, (candidate,j,i))
+    return np.where(water & np.isfinite(t), t, np.nan)
+
+
+def travel_time(depth: np.ndarray, water: np.ndarray, T: float, dir_from_deg: float, res_m) -> np.ndarray:
+    c, _ = phase_speed(smooth_over_water(depth, water, DEPTH_SIGMA), T)
+    return arrival_from_speed(c, water, dir_from_deg, res_m)
+
+
+def path_integral(t: np.ndarray, weight: np.ndarray, water: np.ndarray, spacing, sources=None) -> np.ndarray:
+    """Integrate local attenuation along upstream characteristics, never global rank order."""
+    dy, dx = (spacing, spacing) if np.isscalar(spacing) else spacing
+    ny, nx = t.shape; out = np.zeros_like(t)
+    wet = water & np.isfinite(t)
+    for flat in np.argsort(np.where(wet, t, np.inf), axis=None):
+        y, x = divmod(int(flat), nx)
+        if not wet[y,x]: break
+        if sources is not None and sources[y,x]: continue
+        values, weights = [], []
+        for j,i,d in ((y-1,x,dy),(y+1,x,dy),(y,x-1,dx),(y,x+1,dx)):
+            if not (0 <= j < ny and 0 <= i < nx) or not wet[j,i]: continue
+            dt = t[y,x] - t[j,i]
+            if dt <= 1e-9: continue
+            weights.append(dt / d**2)
+            values.append(out[j,i] + 0.5 * (weight[y,x] + weight[j,i]) * dt)
+        if weights: out[y,x] = np.dot(values, weights) / sum(weights)
+    return out
+
+
+def wave_height(depth: np.ndarray, water: np.ndarray, t: np.ndarray, H0: float, T: float, res_m, sources=None) -> np.ndarray:
+    """Linear shoaling plus empirical path-local friction and a depth-limited cap.
+
+    This monochromatic approximation does not model spectral transfer, reflection or diffraction.
+    """
     cg0 = group_speed(np.full_like(depth, 2000.0), T); cg = group_speed(depth, T)
     ks = np.sqrt(cg0 / np.maximum(cg, 1e-3))
-    # friction: exponential decay with the travel time spent in water shallower than ~3 wavelengths, weighted by 1/h
-    shallow = water & (depth < 1.56 * T * T * 1.5)
-    weight = np.where(shallow, 1.0 / np.maximum(depth, 1.0), 0.0)
-    # accumulate along increasing t: sort cells by t and cumulate weight·dt along the marching order (cheap proxy for ray integration)
-    order = np.argsort(t, axis=None); flat_t = t.ravel()[order]; flat_w = weight.ravel()[order]
-    dt = np.diff(flat_t, prepend=flat_t[0]); cum = np.cumsum(flat_w * dt); kf_flat = np.exp(-CF * cum / max(1.0, H0))
-    kf = np.empty_like(flat_t); kf[order] = kf_flat; kf = kf.reshape(t.shape)
-    H = H0 * ks * kf
-    return np.where(water, np.minimum(H, GAMMA * np.maximum(depth, 0.05)), 0.0)
+    wet = water & np.isfinite(t)
+    c, _ = phase_speed(depth, T)
+    # Travel time follows phase; energy travels at group speed. Convert dt_phase to dt_group.
+    weight = np.where(wet & (depth < 1.56*T*T*1.5), CF * c / np.maximum(cg, 1e-3) / np.maximum(depth, 1.0), 0.0)
+    loss = path_integral(t, weight, wet, res_m, sources)
+    H = H0 * ks * np.exp(-0.5 * loss)  # E ∝ H²
+    return np.where(wet, np.minimum(H, GAMMA * np.maximum(depth, 0.05)), 0.0)
 
 
 def boundary_conditions(step: dict, index: dict, water: np.ndarray, lat0: float, lon0: float, res: float, shape) -> tuple[float, float, float] | None:
-    """Deep-water H_s, T_p, θ_m from the WW3 primary swell partition, averaged over the grid's deep cells (fallback: whole spectrum)."""
+    """Regional primary-swell summary over WW3 cells in the domain (fallback: bulk sea).
+
+    No depth selection or spatially varying boundary spectrum is available here.
+    """
     F = step["fields"]; lat = np.array(index["lat"]); lon = np.array(index["lon"]); nlat, nlon = index["shape"]
     S, N = lat0, lat0 + shape[0] * res; W, E = lon0, lon0 + shape[1] * res
     vals = []
@@ -145,20 +212,19 @@ def encode_geometry(sdf: np.ndarray, depth: np.ndarray) -> np.ndarray:
 
 
 def encode(t: np.ndarray, H: np.ndarray, sdf: np.ndarray) -> np.ndarray:
-    q = np.clip(np.round(t / T_SCALE), 0, 65535).astype(np.uint32)
+    valid = (sdf > 0) & np.isfinite(t) & (t <= 65535 * T_SCALE)
+    q = np.where(valid, np.clip(np.round(np.nan_to_num(t) / T_SCALE), 1, 65535), 0).astype(np.uint32)
     rgba = np.zeros(t.shape + (4,), np.uint8)
     rgba[..., 0] = (q >> 8) & 255; rgba[..., 1] = q & 255
-    rgba[..., 2] = np.clip(np.round(H / H_MAX * 255), 0, 255)
+    rgba[..., 2] = np.where(valid, np.clip(np.round(H / H_MAX * 255), 0, 255), 0)
     rgba[..., 3] = 255
-    q0 = (rgba[..., 0].astype(int) == 0) & (rgba[..., 1].astype(int) == 0) & (sdf > 0)
-    rgba[..., 1] = np.where(q0, 1, rgba[..., 1])          # water cells on the source band: t = 1 unit, never the land sentinel 0
     return rgba
 
 
 def main() -> int:
     depth_full, lat0, lon0, res = load_depth()
     depth = depth_full[::STRIDE, ::STRIDE]; water = depth > 0
-    res_deg = res * STRIDE; res_m = res_deg * 111320 * math.cos(math.radians(lat0 + depth.shape[0] * res_deg / 2))
+    res_deg = res * STRIDE; res_m = metric_spacing(res_deg, lat0 + (depth.shape[0] - 1) * res_deg / 2)
     sdf = sdf_metres(water, res_m)
     index = json.loads((WW3 / "index.json").read_text())
     OUT.mkdir(parents=True, exist_ok=True)
@@ -171,16 +237,16 @@ def main() -> int:
         if not bc: continue
         hs, tp, dp = bc
         t = travel_time(depth, water, tp, dp, res_m)
-        H = wave_height(depth, water, t, hs, tp, res_m)
+        H = wave_height(depth, water, t, hs, tp, res_m, inflow_mask(water, dp))
         rgba = encode(t, H, sdf)
         name = f"f{st['hour']:03d}.png"
         Image.fromarray(rgba[::-1], "RGBA").save(OUT / name, optimize=True)      # row 0 = north for the texture
         steps.append({"hour": st["hour"], "valid_time": st["valid_time"], "file": name, "hs0_m": round(hs, 2), "tp_s": round(tp, 1), "dir_from_deg": round(dp, 1),
-                      "omega": round(2 * math.pi / tp, 5), "t_max_s": round(float(t[water].max()), 1)})
-        print(f"{name}: swell {hs:.2f} m @ {tp:.1f} s from {dp:.0f}°, travel ≤ {t[water].max() / 60:.0f} min, H ≤ {H.max():.2f} m", flush=True)
+                      "omega": round(2 * math.pi / tp, 5), "t_max_s": round(float(np.nanmax(t[water])), 1)})
+        print(f"{name}: swell {hs:.2f} m @ {tp:.1f} s from {dp:.0f}°, travel ≤ {np.nanmax(t[water]) / 60:.0f} min, H ≤ {H.max():.2f} m", flush=True)
     (OUT / "index.json").write_text(json.dumps({
-        "cycle": index["cycle"], "generated_at": index.get("generated_at"), "source": "WW3 primary swell partition → eikonal travel time (skfmm) + linear shoaling / friction / γ-breaking on NOAA CRM 3″ (stride 3)",
-        "bounds": [lon0, lat0, lon0 + depth.shape[1] * res_deg, lat0 + depth.shape[0] * res_deg], "shape": [depth.shape[0], depth.shape[1]], "res_deg": res_deg,
+        "cycle": index["cycle"], "generated_at": index.get("generated_at"), "solver_version": 2, "source": "WW3 primary swell; metric eikonal, empirical path-local friction, linear shoaling and depth cap; not a validated surf-height model",
+        "bounds": [lon0 - res_deg/2, lat0 - res_deg/2, lon0 + (depth.shape[1] - 0.5) * res_deg, lat0 + (depth.shape[0] - 0.5) * res_deg], "shape": [depth.shape[0], depth.shape[1]], "res_deg": res_deg,
         "encoding": {"t_scale_s": T_SCALE, "h_max_m": H_MAX, "land": "t == 0", "rows": "north first", "geometry": {"file": "geometry.png", "sdf_offset_m": 8192, "depth_scale_m": 2}},
         "steps": steps}, indent=0))
     print(f"wrote {len(steps)} wavefield textures to {OUT}")

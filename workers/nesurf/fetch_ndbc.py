@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -138,10 +139,15 @@ def parse_data_spec(text: str) -> dict[str, Any] | None:
         if not line or line.startswith("#"): continue
         parts = line.replace("(", " ").replace(")", " ").split()
         if len(parts) < 8: continue
-        t = datetime(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), tzinfo=timezone.utc)
-        vals = [float(x) for x in parts[6:]]
+        try:
+            t = datetime(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), tzinfo=timezone.utc)
+            vals = [float(x) for x in parts[6:]]
+        except ValueError:
+            continue
         density, freqs = vals[0::2], vals[1::2]
-        n = min(len(density), len(freqs))
+        n = len(freqs)
+        if n < 2 or len(density) != n or any(not math.isfinite(f) or f <= 0 for f in freqs): continue
+        if any(b <= a for a,b in zip(freqs,freqs[1:])) or any(not math.isfinite(v) or v < 0 for v in density): continue
         return {"t": t, "freqs": freqs[:n], "density": density[:n]}
     return None
 
@@ -156,15 +162,22 @@ def build_buoy(met_text: str | None, spec_text: str | None, now: datetime,
     newest = met[0]["t"]
     rec: dict[str, Any] = {"status": "ok", "obs_time": iso(newest), "age_min": int((now - newest).total_seconds() // 60)}
     for col, key in MET_FIELDS.items():
-        rec[key] = latest_value(met, col, newest, window)
-    if latest_value(met, "WVHT", newest, wave_stale) is None:
+        rec[key] = latest_value(met, col, now, window)
+    wave_row = next((r for r in met if isinstance(r.get("WVHT"), float) and math.isfinite(r["WVHT"]) and r["WVHT"] >= 0 and r["t"] <= now + timedelta(minutes=5)), None)
+    if wave_row:
+        rec["wave_time"] = iso(wave_row["t"])
+        for col in ("WVHT", "DPD", "APD", "MWD"):
+            rec[MET_FIELDS[col]] = wave_row.get(col)
+    if newest < now - timedelta(hours=3) or newest > now + timedelta(minutes=5):
+        rec["status"] = "stale"
+    elif wave_row is None or wave_row["t"] < now - wave_stale:
         rec["status"] = "no_waves"
 
     rec["swell"] = rec["windsea"] = None
     rec["steepness"] = None
     if spec_text is not None:
         spec = parse_ndbc_table(spec_text)
-        recent = [r for r in spec if r["t"] >= newest - window and isinstance(r.get("WVHT"), float)]
+        recent = [r for r in spec if now - window <= r["t"] <= now + timedelta(minutes=5) and isinstance(r.get("WVHT"), float)]
         if recent:
             s = recent[0]
             rec["spec_time"] = iso(s["t"])
@@ -176,10 +189,10 @@ def build_buoy(met_text: str | None, spec_text: str | None, now: datetime,
     rec["spectrum"] = None
     if data_spec_text is not None:
         ds = parse_data_spec(data_spec_text)
-        if ds and ds["t"] >= newest - timedelta(hours=3):
+        if ds and now - timedelta(hours=3) <= ds["t"] <= now + timedelta(minutes=5):
             rec["spectrum"] = {"time": iso(ds["t"]), "freqs_hz": ds["freqs"], "density_m2_hz": ds["density"], "units": "m²/Hz per frequency bin"}
 
-    cutoff = newest - history
+    cutoff = now - history
     rec["history"] = [
         {"t": iso(r["t"]), "wvht_m": r.get("WVHT"), "dpd_s": r.get("DPD"), "mwd_deg": r.get("MWD")}
         for r in reversed(met) if r["t"] >= cutoff and r.get("WVHT") is not None
@@ -191,7 +204,7 @@ def run(buoys: list[str], out_path: Path, pause: float, window_min: int, history
     session = make_session()
     now = datetime.now(timezone.utc)
     window, history = timedelta(minutes=window_min), timedelta(hours=history_hours)
-    wave_stale = timedelta(hours=6)
+    wave_stale = timedelta(hours=3)
     result: dict[str, Any] = {}
     for k, bid in enumerate(buoys):
         met = fetch_text(session, f"{REALTIME2}/{bid}.txt")
@@ -215,7 +228,7 @@ def run(buoys: list[str], out_path: Path, pause: float, window_min: int, history
         "units": {"wvht_m": "m", "dpd_s": "s", "apd_s": "s", "mwd_deg": "deg true, FROM", "wspd_ms": "m/s",
                   "wdir_deg": "deg true, FROM", "gst_ms": "m/s", "wtmp_c": "degC"},
         "buoys": result,
-    }, ndigits=2)
+    }, ndigits=6)
     log.info("wrote %s (%d B, %d buoys)", out_path, n, len(result))
     return out_path
 

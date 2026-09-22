@@ -135,11 +135,9 @@ def main() -> int:
     (OUT / "bathy.geojson").write_text(json.dumps(fc(bathy), separators=(",", ":")))
     print(f"isobath polygons {len(bathy)}", flush=True)
 
-    # ribbon (reuse the coastline segmenter): needs (polygon, km2) pairs + the land raster
-    pairs = [(g, g.area * 111 * 111 * math.cos(math.radians(43))) for g in land]
-    ribbon = [f for f in ribbon_segments(pairs, ~water, ys, xs, 100.0, 0.35)]
-    (OUT / "ribbon.geojson").write_text(json.dumps(fc(ribbon), separators=(",", ":")))
-    print(f"ribbon segments {len(ribbon)}", flush=True)
+    # Derive both coastline and ribbon from the same ocean polygon used by rendering.
+    from .coastal_geometry import build as build_coastline
+    ribbon = build_coastline(OUT)
 
     spots = [{"type": "Feature", "id": s["id"], "properties": {"id": s["id"], "name": s["name"], "state": s["state"], "facing": s["facing_deg"]},
               "geometry": {"type": "Point", "coordinates": [s["location"]["lon"], s["location"]["lat"]]}}

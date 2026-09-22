@@ -12,8 +12,8 @@ describe("trainsFrom", () => {
     const r: Ww3SpotRecord = { hour: 0, valid_time: "2026-09-21T12:00:00Z", swell1_hs: 1, swell1_tp: 10, swell1_dp: 170,
       swell2_hs: 0.02, swell2_tp: 8, swell2_dp: 100, wind_hs: 0.5, wind_tp: 4, wind_dp: 40 };
     const t = trainsFrom(r);
-    expect(t).toHaveLength(2);
-    expect(t[1].kind).toBe("windsea");
+    expect(t).toHaveLength(3);
+    expect(t[2].kind).toBe("windsea");
   });
   it("falls back to combined fields when partitions are missing", () => {
     expect(trainsFrom({ hour: 0, valid_time: "x", hs: 1.2, tp: 9, dp: 150 })).toEqual([{ hs: 1.2, tp: 9, dp: 150, kind: "swell" }]);
@@ -47,11 +47,7 @@ describe("tideAt", () => {
 
 describe("calibrationFor", () => {
   const cal: Calibration = { generated_at: "x", cycle: "x", buoys: { "44097": { n_pairs: 12, low_confidence: true, ratio_hs: 1.4, obs_hs_mean: 1.4, model_hs_mean: 1, mae_hs: 0.4, period_bias_s: 0, dir_bias_deg: 0 } } };
-  it("damps the ratio by pair count", () => {
-    const c = calibrationFor(matunuck, cal)!;
-    expect(c.buoy).toBe("44097");
-    expect(c.applied).toBeCloseTo(1.2, 5); // 12/24 trust → half of +0.4
-  });
+  it("rejects unvalidated autocorrelated pairs", () => { expect(calibrationFor(matunuck, cal)).toBeNull(); });
   it("is null without calibration data", () => {
     expect(calibrationFor(matunuck, null)).toBeNull();
   });

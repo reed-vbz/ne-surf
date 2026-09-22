@@ -32,5 +32,5 @@ export function tileAround(g: DepthGrid, lat: number, lon: number) {
   return { lat0: g.lat0 + i0 * g.res, lon0: g.lon0 + j0 * g.res, res: g.res, nlat, nlon, depth };
 }
 
-export interface RibbonFeature { type: "Feature"; id: number; geometry: { type: "LineString"; coordinates: [[number, number], [number, number]] }; properties: { n: number; e: number; m: [number, number] } }
+export interface RibbonFeature { type: "Feature"; id: number; geometry: { type: "LineString"; coordinates: [number, number][] }; properties: { n: number; e: number; m: [number, number] } }
 export const loadRibbon = () => fetch(`/data/${REGION_ID}/ribbon.geojson`).then((r) => r.json()) as Promise<{ features: RibbonFeature[] }>;

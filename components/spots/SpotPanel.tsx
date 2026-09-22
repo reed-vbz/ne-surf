@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import type { BathySpot, NdbcBuoy } from "@/lib/cache";
+import { buoyFresh, type BathySpot, type NdbcBuoy } from "@/lib/cache";
+import { faceLabel } from "@/lib/display";
 import { BAND_LABEL, type ScoreBreakdown, type Spot, type Conditions } from "@/lib/quality";
 
 const COLORS = { grey: "bg-slate-500", yellow: "bg-[#ffd23f] text-[#0b1526]", green: "bg-[#3ddc84] text-[#0b1526]" };
@@ -48,7 +49,7 @@ export default function SpotPanel({ spot, result, cond, buoys, bathy, onClose, h
         <div className={`grid h-16 w-16 place-items-center rounded-2xl text-2xl font-bold text-white ${COLORS[result.color]}`}>{result.score}</div>
         <div>
           <div className="font-semibold text-white">{BAND_LABEL[result.band]}</div>
-          <div className="text-sm text-slate-300">~{result.face_ft.toFixed(0)}–{(result.face_ft * 1.25).toFixed(0)} ft faces</div>
+          <div className="text-sm text-slate-300">{faceLabel(result.available === false ? null : result.face_ft)} estimated faces</div>
           <div className="text-[11px] text-slate-500">
             deep water {result.usable_hs_m.toFixed(1)} m usable · {result.nearshore.breaker}{result.nearshore.xi !== null ? ` (ξ ${result.nearshore.xi.toFixed(2)})` : ""}
           </div>
@@ -105,12 +106,12 @@ export default function SpotPanel({ spot, result, cond, buoys, bathy, onClose, h
         </p>
       )}
       <section className="text-xs text-slate-300">
-        <h3 className="mb-1 font-semibold uppercase tracking-wider text-slate-100">Nearest buoys (live)</h3>
+        <h3 className="mb-1 font-semibold uppercase tracking-wider text-slate-100">Associated buoys · latest observed</h3>
         {buoys.map(([id, b]) => (
           <div key={id} className="flex justify-between">
             <span>{id}</span>
             <span className="tabular-nums text-slate-300">
-              {!b ? "no data" : b.status !== "ok" ? b.status : `${ft(b.wvht_m ?? 0)} ft @ ${b.dpd_s ?? "–"} s ${b.mwd_deg != null ? compass(b.mwd_deg) : ""}`}
+              {!b ? "no data" : !buoyFresh(b) ? "stale or unavailable" : `${ft(b.wvht_m ?? 0)} ft @ ${b.dpd_s ?? "–"} s ${b.mwd_deg != null ? compass(b.mwd_deg) : ""}`}
             </span>
           </div>))}
       </section>

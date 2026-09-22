@@ -61,6 +61,7 @@ export interface SwellTrain {
 
 /** Everything the engine needs for one spot at one instant. */
 export interface Conditions {
+  wave_status?: "available" | "missing";
   trains: SwellTrain[];
   wind: { speed_kts: number; dir_from_deg: number; gust_kts?: number } | null;
   tide: { state: TideState; phase: TidePhase; height_m: number; range_fraction: number } | null;
@@ -74,6 +75,7 @@ export type Band = "very_poor" | "poor" | "poor_to_fair" | "fair" | "fair_to_goo
 export type Color = "grey" | "yellow" | "green";
 
 export interface ScoreBreakdown {
+  available?: boolean;
   score: number;              // 0-100
   band: Band;
   color: Color;

@@ -25,7 +25,9 @@ export function assessTrain(spot: Spot, train: SwellTrain): TrainAssessment {
   for (const s of spot.shadow_sectors ?? []) {
     if (!inSector(train.dp, s.from_deg, s.to_deg)) continue;
     // long-period swell refracts around obstacles: halve the attenuation above the threshold
-    const att = s.min_period_s !== undefined && train.tp >= s.min_period_s ? s.attenuation * 0.5 : s.attenuation;
+    const fraction = s.min_period_s === undefined ? 0 : Math.max(0, Math.min(1, (train.tp - s.min_period_s + 2) / 4));
+    const smooth = fraction * fraction * (3 - 2 * fraction);
+    const att = s.attenuation * (1 - 0.5 * smooth);
     const r = 1 - att;
     if (r < reach) { reach = r; shadowed_by = s.by; }
   }

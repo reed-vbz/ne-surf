@@ -12,19 +12,15 @@ import io
 import math
 
 import numpy as np
-import skfmm
+
 from PIL import Image
 
-from nesurf.wavefield import H_MAX, T_SCALE, encode
+from nesurf.wavefield import H_MAX, T_SCALE, encode, arrival_from_speed
 
 
 def travel_time_from_k(k: np.ndarray, water: np.ndarray, tp: float, dir_from_deg: float, res_m: float) -> np.ndarray:
     omega = 2 * math.pi / tp; c = np.where(water & (k > 1e-6), omega / np.maximum(k, 1e-6), 1e-3)
-    a = math.radians(dir_from_deg); ux, uy = math.sin(a), math.cos(a)
-    ny, nx = k.shape; yy, xx = np.mgrid[0:ny, 0:nx]; proj = xx * ux + yy * uy
-    band = proj >= np.quantile(proj[water], 0.97)
-    phi = np.ma.MaskedArray(np.where(band & water, -1.0, 1.0), mask=~water)
-    return np.where(water, np.ma.filled(skfmm.travel_time(phi, speed=c, dx=res_m), 0.0), 0.0)
+    return arrival_from_speed(c, water, dir_from_deg, res_m)
 
 
 def to_texture_png(hs: np.ndarray, k: np.ndarray, water: np.ndarray, sdf: np.ndarray, tp: float, dir_from_deg: float, res_m: float) -> bytes:

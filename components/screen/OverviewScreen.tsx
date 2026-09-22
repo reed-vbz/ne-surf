@@ -8,6 +8,7 @@
  * the 24px chevrons and 8px segments carry invisible ≥44px hit areas (.hit44 / .hit44-seg).
  */
 import type { CSSProperties, ReactNode } from "react";
+import { WIND_ALIGN } from "@/lib/colors";
 
 export interface ScreenModel {
   dateLabel: string;
@@ -24,24 +25,24 @@ export interface ScreenHandlers {
   onForecast: () => void; onMenu: () => void; onHotspot: () => void;
 }
 
-export const dockCard: CSSProperties = { flex: "none", width: 148, height: 164, borderRadius: 12, background: "rgba(14,33,42,0.72)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0px 8px 24px rgba(0,0,0,0.35)", boxSizing: "border-box", padding: "10px 10px 8px 10px", display: "flex", flexDirection: "column", gap: 6, scrollSnapAlign: "start" };
-export const panelTitle9: CSSProperties = { fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#e8eef2" };
-const legendRow: CSSProperties = { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 500, color: "#ffffff" };
+export const dockCard: CSSProperties = { flex: "none", width: "clamp(216px, 66vw, 256px)", height: 192, borderRadius: 12, background: "rgba(10,24,34,0.90)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0px 8px 24px rgba(0,0,0,0.35)", boxSizing: "border-box", padding: "10px 10px 8px 10px", display: "flex", flexDirection: "column", gap: 6, scrollSnapAlign: "start" };
+export const panelTitle9: CSSProperties = { fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#e8eef2" };
+const legendRow: CSSProperties = { display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 500, color: "#ffffff" };
 const calloutStyle = (left: number, top: number): CSSProperties => ({
   position: "absolute", left, top, height: 24, padding: "0px 8px", borderRadius: 4, background: "#0e212a", boxShadow: "0px 3px 10px rgba(0,0,0,0.4)",
-  display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", fontSize: 10, fontWeight: 500, color: "#ffffff", zIndex: 3,
+  display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", fontSize: 12, fontWeight: 500, color: "#ffffff", zIndex: 3,
 });
 const pill = (hex: string) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
     <div style={{ width: "100%", height: 8, borderRadius: 4, background: hex }} />
-    <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: hex }}>{hex === "#41c776" ? "Green" : hex === "#f3c79e" ? "Moderate" : "Poor"}</div>
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: hex }}>{hex === "#41c776" ? "Green" : hex === "#f3c79e" ? "Moderate" : "Poor"}</div>
   </div>
 );
 
 export default function OverviewScreen({ m, h, map, dockExtras, children }: { m: ScreenModel; h: ScreenHandlers; map: ReactNode; dockExtras?: ReactNode; children?: ReactNode }) {
   const pct = ((m.selectedIndex + (m.knobFraction ?? 0.5)) / 7) * 100;
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", background: "#0e2029", boxSizing: "border-box", fontFamily: "'Barlow', system-ui, sans-serif" }}>
+    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "clip", background: "#0e2029", boxSizing: "border-box", fontFamily: "'Barlow', system-ui, sans-serif" }}>
 
       {/* MAP LAYER */}
       {map}
@@ -53,7 +54,7 @@ export default function OverviewScreen({ m, h, map, dockExtras, children }: { m:
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0e2029" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="15 7 21 7 21 13"></polyline></svg>
           </div>
           <div style={{ flexGrow: 1, fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#e8eef2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NE Surf Overview</div>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#cfe0ea", whiteSpace: "nowrap" }}>{m.dateLabel}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#cfe0ea", whiteSpace: "nowrap" }}>{m.dateLabel}</div>
           <button aria-label="Open menu" onClick={h.onMenu} style={{ width: 44, height: 44, marginRight: -12, background: "transparent", border: 0, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8eef2" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
           </button>
@@ -64,10 +65,10 @@ export default function OverviewScreen({ m, h, map, dockExtras, children }: { m:
           </button>
           <div style={{ flexGrow: 1, position: "relative", display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 2 }}>
             {m.days.map((d, i) => (
-              <button key={d.name + i} aria-label={`${d.name} ${d.range}`} onClick={() => h.onPickDay(i)} style={{ height: 56, padding: 0, background: "transparent", border: 0, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 2, minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: d.active ? "#ffffff" : "#9fb1bc" }}>{d.name}</div>
+              <button key={d.name + i} aria-label={`${d.name} best window ${d.range}`} onClick={() => h.onPickDay(i)} style={{ height: 56, padding: 0, background: "transparent", border: 0, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 2, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: d.active ? "#ffffff" : "#9fb1bc" }}>{d.name}</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#ffffff", whiteSpace: "nowrap" }}>{d.range}</div>
-                <div style={{ fontSize: 8, fontWeight: 500, color: "#b8c7d1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{d.meta}</div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: "#b8c7d1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{d.meta}</div>
                 <div style={{ width: "100%", height: 6, borderRadius: 3, marginTop: "auto", background: d.tierColor, opacity: d.filled ? 1 : 0.4 }}></div>
               </button>
             ))}
@@ -93,15 +94,15 @@ export default function OverviewScreen({ m, h, map, dockExtras, children }: { m:
       ))}
 
       {/* WIDGET DOCK (v5 2026-09-22: OS-style row of uniform glass cards; scroll-snaps on phones, one row on desktop) */}
-      <div className="nesurf-dock" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0px 8px 8px 8px", display: "flex", gap: 8, alignItems: "stretch", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", zIndex: 4 }}>
+      <div className="nesurf-dock" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 8px calc(8px + env(safe-area-inset-bottom))", display: "flex", gap: 8, alignItems: "stretch", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", zIndex: 4 }}>
         <div role="button" tabIndex={0} onClick={h.onHotspot} onKeyDown={(e) => e.key === "Enter" && h.onHotspot()} style={{ ...dockCard, cursor: "pointer" }}>
           <div style={panelTitle9}>Surf Quality Hotspot</div>
           <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
             <svg width="16" height="20" viewBox="0 0 16 20" fill={m.hotspot.pinColor} style={{ flexShrink: 0, marginTop: 1 }}><path d="M8 0 C3.6 0 0 3.5 0 7.8 C0 13.4 8 20 8 20 C8 20 16 13.4 16 7.8 C16 3.5 12.4 0 8 0 Z"></path><circle cx="8" cy="7.8" r="3" fill="#0e2029"></circle></svg>
             <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: m.hotspot.ratingColor }}>{m.hotspot.rating}</div>
-              <div style={{ fontSize: 10, fontWeight: 500, color: "#ffffff", lineHeight: 1.3 }}>{m.hotspot.line1}</div>
-              <div style={{ fontSize: 10, fontWeight: 500, color: "#ffffff", lineHeight: 1.3 }}>{m.hotspot.line2}</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "#ffffff", lineHeight: 1.3 }}>{m.hotspot.line1}</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "#ffffff", lineHeight: 1.3 }}>{m.hotspot.line2}</div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6, marginTop: "auto" }}>
@@ -111,12 +112,13 @@ export default function OverviewScreen({ m, h, map, dockExtras, children }: { m:
         {dockExtras}
         <div style={dockCard}>
           <div style={panelTitle9}>Legend</div>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b8c7d1" }}>Swell energy</div>
-          <div style={{ height: 8, borderRadius: 4, background: "linear-gradient(90deg, #64d5cc 0%, #4798b7 40%, #2b5bc7 75%, #163797 100%)" }}></div>
-          <div style={legendRow}><span>Low</span><span>Clean</span><span>High</span></div>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b8c7d1", marginTop: 4 }}>Wind on the beach</div>
-          <div style={{ height: 8, borderRadius: 4, background: "linear-gradient(90deg, #27a055 0%, #a8c24a 45%, #f0a24a 75%, #e66729 100%)" }}></div>
-          <div style={legendRow}><span>Offshore</span><span>Onshore</span></div>
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b8c7d1" }}>Ocean depth · m</div>
+          <div style={{ height: 8, borderRadius: 4, background: "linear-gradient(90deg, #387477 0%, #2E666F 25%, #235665 50%, #13384C 75%, #091725 100%)" }}></div>
+          <div style={legendRow}><span>0</span><span>2</span><span>5</span><span>20</span><span>150+</span></div>
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b8c7d1", marginTop: 4 }}>Wind on the beach</div>
+          <div style={{ height: 8, borderRadius: 4, background: `linear-gradient(90deg, ${WIND_ALIGN.offshore}, ${WIND_ALIGN.cross}, ${WIND_ALIGN.onshore})` }}></div>
+          <div style={legendRow}><span>Off</span><span>Cross</span><span>On</span></div>
+          <div style={{ fontSize: 11, color: "#b9d3df" }}>Pale: light wind · Gray: unavailable</div>
         </div>
       </div>
       <style>{`.nesurf-dock::-webkit-scrollbar{display:none}`}</style>

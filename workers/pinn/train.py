@@ -53,10 +53,10 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=7); ap.add_argument("--out", type=Path, default=CKPT)
     a = ap.parse_args(argv)
     torch.manual_seed(a.seed); rng = random.Random(a.seed)
-    geom = load_geometry(); dx = float(geom["res_m"])
+    geom = load_geometry(); dx = tuple(float(v) for v in geom["res_m"])
     model = SwanUNet(c_in=8, base=a.base); opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=a.epochs)
-    print(f"SwanUNet base={a.base}: {count_params(model) / 1e6:.2f} M params, grid {geom['depth'].shape} at {dx:.0f} m")
+    print(f"SwanUNet base={a.base}: {count_params(model) / 1e6:.2f} M params, grid {geom['depth'].shape} at {dx} m")
 
     # dataset: (input, target) pairs, teacher or SWAN
     data = []
@@ -81,7 +81,7 @@ def main(argv=None) -> int:
     metrics = held_out_metrics(model, geom)
     print("held-out vs teacher: " + ", ".join(f"{k} {v:.3f}" for k, v in metrics.items()))
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"state_dict": model.state_dict(), "base": a.base, "c_in": 8, "grid": list(geom["depth"].shape), "res_m": dx, "metrics": metrics, "epochs": a.epochs, "samples": len(data)}, a.out)
+    torch.save({"geometry_hash": geom["geometry_hash"], "geometry_version": 2, "teacher_version": 2, "target_source": "swan" if a.swan else "physics-teacher", "validation_source": "physics-teacher", "state_dict": model.state_dict(), "base": a.base, "c_in": 8, "grid": list(geom["depth"].shape), "res_m": dx, "metrics": metrics, "epochs": a.epochs, "samples": len(data)}, a.out)
     print(f"saved {a.out}")
     return 0
 

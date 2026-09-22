@@ -5,6 +5,11 @@ html{line-height:normal}
 body{line-height:normal;margin:0;font-family:'Barlow',system-ui,sans-serif;background:#0e2029;color:#e8eef2;-webkit-font-smoothing:antialiased}
 a{color:#4798b7}a:hover{color:#6bb8d6}
 button{font-family:inherit}
+.nesurf-drawer-body > * { flex-shrink: 0; }
+.nesurf-drawer[aria-hidden="true"] { visibility: hidden; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nesurf-drawer { transition: none !important; }
+}
 
 /* ≥44px hit areas for controls whose visual is smaller (build-spec §03 Touch); invisible, no layout change */
 .hit44{position:relative}
@@ -22,3 +27,13 @@ button{font-family:inherit}
 
 /* Phase B: loading line under the toolbar (build-spec §06) */
 @keyframes nesurf-progress { 0% { transform: scaleX(0) } 50% { transform: scaleX(.7) } 100% { transform: scaleX(1); opacity: 0 } }
+
+:focus-visible { outline: 2px solid #7ff6ff; outline-offset: 3px; }
+.nesurf-expand { position: absolute; right: 5px; top: 2px; width: 40px; height: 40px; border: 0; border-radius: 8px; background: #163445; color: white; z-index: 1; cursor: pointer; }
+.nesurf-chart-card > div { padding-top: 30px; }
+.nesurf-chart-dialog { position: fixed; inset: 0; margin: auto; width: min(760px, 94vw); height: min(560px, 86dvh); padding: 46px 24px 24px; background: #0d2234; border: 1px solid #6b9db5; border-radius: 16px; color: white; }
+.nesurf-chart-dialog::backdrop { background: #020a12b8; backdrop-filter: blur(8px); }
+[data-theme="contrast"] .nesurf-drawer, [data-theme="contrast"] .nesurf-dock > *, [data-theme="contrast"] .nesurf-data-status { background: #07121d !important; border: 1px solid #cadfea !important; }
+[data-theme="contrast"] .nesurf-dock * { text-shadow: 0 1px 1px #000; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 0s !important; scroll-behavior: auto !important; } }
+@media (max-width: 899px) { .nesurf-data-status { top: 116px !important; max-width: calc(100vw - 74px) !important; } }

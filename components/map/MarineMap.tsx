@@ -1,38 +1,21 @@
 "use client";
-/**
- * The map engine: 5-layer permanent marine architecture on MapLibre GL + deck.gl (interleaved) + self-hosted MVT.
- * All five layers render concurrently; there are no user toggles.
- *
- *   L0 ocean floor      2D top-down (pitch 0, bearing 0, rotation locked — Reed 2026-09-22: the isometric view was cluttered).
- *                       Isobath vector `fill` (`interpolate` on min_depth: 0 m #00E5FF → 20 m #0099CC → 100 m+ #0B192C) with a
- *                       hillshade from the CRM Terrain-RGB DEM tiles (public/tiles/nh-dem) for flat relief shading.
- *   L1 swell + wind     deck.gl TripsLayer comets (wind cyan, swell energy-coloured) + PathLayer refraction crests, at sea level
- *                       above the 3D floor. Shoaling: swell comet clocks run on travel time from the dispersion-relation phase
- *                       speed, so heads slow over the shallow zones; crests bend by Snell ray tracing.
- *                       Every streamline has a random phase and is emitted in loop-spaced copies, so heads flow continuously
- *                       (no pulsing); the swell field is Snell-refracted on the depth grid before integration.
- *   L2 nearshore ribbon deck.gl PathLayer, 100 m shoreline segments, wind-to-beach colour #00FF88 / #FFB800 / #FF3366
- *   L3 land mask        satellite land (Reed, 2026-09-22: "I want satellite view for the land"), so the mask is enforced by
- *                       the data instead of an opaque fill: L0 polygons are ocean-only and share the 0 m outline with the
- *                       land polygon, L1 streamlines exist only over water and rays stop at the shore, L2 sits on the
- *                       shoreline. The antialiased shoreline line (layer `land`) is drawn above L0–L2; the opaque fill is
- *                       kept in the style at opacity 0 (`land-fill`) for a chart look if ever wanted.
- *   L4 annotations      pulses (deck.gl), spot pins + callouts (HTML markers), buoy status dots, hover → React tooltip.
- *
- * Deviation from the directive, verified: deck.gl 9.4's MaskExtension does not render interleaved on MapLibre 6, and
- * MapLibre 6 hides map.transform (shimmed below). The bathymetry source is self-hosted CRM MVT (no Mapbox token).
+/** Satellite basemap plus a standalone deck canvas with a shared ocean mask.
+ * Depth, wavefronts and particle fragments are clipped by the published ocean polygon.
+ * The ribbon follows the polygon boundary; pins sit above the deck canvas.
  */
 import { Map as MLMap, Marker, setWorkerUrl, type LngLatBoundsLike, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import RollingWavefrontsLayer from "./RollingWavefrontsLayer";
 import type { Wavefield } from "@/lib/wavefield";
+import { MaskExtension } from "@deck.gl/extensions";
+import type { FeatureCollection } from "geojson";
 import type { Layer } from "@deck.gl/core";
 import { useEffect, useRef, useState } from "react";
-import { hexToRgb, ramp, ribbonColor, TIER, type Tier } from "@/lib/colors";
+import { hexToRgb, ramp, ribbonColor, windAlignment, windTier, TIER, type Tier } from "@/lib/colors";
 import { REGION_BBOX, REGION_ID, depthAt, inGrid, type DepthGrid, type RibbonFeature } from "@/lib/region";
 import { isLand } from "@/lib/overlays";
 import { phaseSpeed } from "@/lib/refraction";
@@ -43,19 +26,24 @@ export interface MapSpot { id: string; name: string; state: string; lat: number;
 export interface MapBuoy { id: string; lat: number; lon: number; ok: boolean; label: string }
 export type MapHover = { kind: "spot"; spot: MapSpot; x: number; y: number; ribbonAngle: number | null; ribbonTier: string | null } | { kind: "buoy"; buoy: MapBuoy; x: number; y: number };
 interface Props {
-  spots: MapSpot[]; buoys: MapBuoy[]; wind: FlowField | null; swell: FlowField | null; wavefield: Wavefield | null; depth: DepthGrid | null; ribbon: RibbonFeature[];
+  spots: MapSpot[]; buoys: MapBuoy[]; wind: FlowField | null; windSea: FlowField | null; swell: FlowField | null; wavefield: Wavefield | null; depth: DepthGrid | null; ribbon: RibbonFeature[];
   onHover: (h: MapHover | null) => void; selectedId: string | null; onSelect: (id: string | null) => void; flyTo: { lon: number; lat: number; key: number } | null;
 }
 
 const B = REGION_BBOX;
 const BOUNDS: LngLatBoundsLike = [[B.west, B.south], [B.east, B.north]];
-const FIT = { padding: { top: 120, bottom: 180, left: 8, right: 8 } };
+const FIT = { padding: { top: 120, bottom: 216, left: 8, right: 8 } };
+const maskExtension = new MaskExtension();
+const oceanClip = { extensions: [maskExtension], maskId: "ocean-mask", maskByInstance: false };
+const DEPTH_COLORS: Array<[number,string]> = [[0,"#387477"],[2,"#2E666F"],[5,"#235665"],[10,"#1A4659"],[20,"#13384C"],[40,"#102C40"],[80,"#0D2234"],[150,"#091725"]];
 const LAND = "#1a2a33";
 const STYLE: StyleSpecification = {
   version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
   sources: {
     esri: { type: "raster", tileSize: 256, maxzoom: 18, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], attribution: "Imagery © Esri, Maxar, Earthstar Geographics · Bathymetry NOAA CRM" },
     region: { type: "vector", tiles: [`${typeof window !== "undefined" ? window.location.origin : ""}/tiles/${REGION_ID}/{z}/{x}/{y}.pbf`], minzoom: 8, maxzoom: 13, bounds: [B.west, B.south, B.east, B.north] },
+    coastline: { type: "geojson", data: `/data/${REGION_ID}/coastline.geojson` },
+    coverage: { type: "geojson", data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[B.west,B.south],[B.east,B.south],[B.east,B.north],[B.west,B.north],[B.west,B.south]] } } },
     dem: { type: "raster-dem", tiles: [`${typeof window !== "undefined" ? window.location.origin : ""}/tiles/${REGION_ID}-dem/{z}/{x}/{y}.png`], tileSize: 256, encoding: "mapbox", minzoom: 8, maxzoom: 13, bounds: [B.west, B.south, B.east, B.north] },
   },
 
@@ -64,14 +52,15 @@ const STYLE: StyleSpecification = {
     { id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.3, "raster-brightness-max": 0.75 } },
     // L0 — ocean floor: data-driven on the isobath polygon's min_depth
     { id: "bathy", type: "fill", source: "region", "source-layer": "bathy", paint: {
-      "fill-color": ["interpolate", ["linear"], ["get", "min_depth"], 0, "#00E5FF", 5, "#00C4EA", 10, "#00ADD8", 20, "#0099CC", 40, "#0A6FA6", 80, "#0C3F72", 100, "#0B192C"],
-      "fill-opacity": 0.85, "fill-antialias": false } },
-    { id: "bathy-edge", type: "line", source: "region", "source-layer": "bathy", paint: { "line-color": "#00E5FF", "line-opacity": 0.10, "line-width": 0.6 } },
-    { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.55, "hillshade-shadow-color": "#03101d", "hillshade-highlight-color": "#bff4ff", "hillshade-accent-color": "#00E5FF", "hillshade-illumination-direction": 320 } },
+      "fill-color": ["interpolate", ["linear"], ["get", "min_depth"], 0, "#387477", 2, "#2E666F", 5, "#235665", 10, "#1A4659", 20, "#13384C", 40, "#102C40", 80, "#0D2234", 150, "#091725"],
+      "fill-opacity": 0, "fill-antialias": false } },
+    { id: "bathy-edge", type: "line", source: "region", "source-layer": "bathy", paint: { "line-color": "#00E5FF", "line-opacity": 0, "line-width": 0.6 } },
+    { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.20, "hillshade-shadow-color": "#03101d", "hillshade-highlight-color": "#bff4ff", "hillshade-accent-color": "#00E5FF", "hillshade-illumination-direction": 320 } },
     { id: "deck-anchor", type: "background", paint: { "background-opacity": 0 } },   // L1 + L2 (deck.gl) interleave before this
     // L3 — land above L0–L2: satellite shows through (fill at 0), the antialiased shoreline line marks the exact 0 m edge
     { id: "land-fill", type: "fill", source: "region", "source-layer": "land", paint: { "fill-color": LAND, "fill-opacity": 0, "fill-antialias": true } },
-    { id: "land-edge", type: "line", source: "region", "source-layer": "land", paint: { "line-color": "#dff7ff", "line-opacity": 0.5, "line-width": 1 } },
+    { id: "land-edge", type: "line", source: "coastline", paint: { "line-color": "#dff7ff", "line-opacity": 0.5, "line-width": 1 } },
+    { id: "coverage", type: "line", source: "coverage", paint: { "line-color": "#9fb1bc", "line-dasharray": [3, 4], "line-width": 1, "line-opacity": 0.55 } },
     { id: "deck-top", type: "background", paint: { "background-opacity": 0 } },      // L4 deck layers interleave before this
   ],
 };
@@ -117,7 +106,7 @@ function refractSwell(field: FlowField, g: DepthGrid, tpS: number, maxDepth = 45
   } };
 }
 
-export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth, ribbon, onHover, selectedId, onSelect, flyTo }: Props) {
+export default function MarineMap({ spots, buoys, wind, windSea, swell, wavefield, depth, ribbon, onHover, selectedId, onSelect, flyTo }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const overlay = useRef<MapboxOverlay | null>(null);
@@ -129,20 +118,21 @@ export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth,
   const swellComets = useRef<Comet[]>([]);
   const thin = useRef({ key: -1, wind: [] as Comet[], swell: [] as Comet[] });
   const tpRef = useRef(9);
+  const [geometry, setGeometry] = useState<{ ocean: FeatureCollection; bathy: FeatureCollection } | null>(null);
+  useEffect(() => { let live = true; Promise.all(["ocean", "bathy"].map((name) => fetch(`/data/${REGION_ID}/${name}.geojson`).then((r) => { if (!r.ok) throw Error(name); return r.json() as Promise<FeatureCollection>; }))).then(([ocean,bathy]) => { if (live) setGeometry({ ocean,bathy }); }).catch(() => {}); return () => { live = false; }; }, []);
   const raf = useRef(0);
-  const t0 = useRef(0);
+  const animationTime = useRef(0);
   const propsRef = useRef({ spots, buoys, ribbon, wind, wavefield, selectedId, onHover, onSelect });
   useEffect(() => { propsRef.current = { spots, buoys, ribbon, wind, wavefield, selectedId, onHover, onSelect }; });
 
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = new MLMap({ container: el.current, style: STYLE, bounds: BOUNDS, fitBoundsOptions: FIT, pitch: 0, bearing: 0, maxPitch: 0, dragRotate: false, pitchWithRotate: false, touchPitch: false, minZoom: 7.5, maxZoom: 15, attributionControl: { compact: true } });
-    t0.current = performance.now();
     m.on("load", () => {
       // deck.gl 9.4's interleaved integration reads map.transform; MapLibre 6 no longer exposes it on Map
       const mm = m as unknown as { transform?: unknown; _camera?: { transform?: unknown }; painter?: { transform?: unknown } };
       if (mm.transform === undefined) Object.defineProperty(m, "transform", { get: () => mm._camera?.transform ?? mm.painter?.transform, configurable: true });
-      overlay.current = new MapboxOverlay({ interleaved: true, layers: [] }); m.addControl(overlay.current); setReady(true);
+      overlay.current = new MapboxOverlay({ interleaved: false, layers: [] }); m.addControl(overlay.current); setReady(true);
       m.touchZoomRotate.disableRotation();
     });
     m.on("click", () => propsRef.current.onSelect(null));
@@ -152,20 +142,20 @@ export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth,
     return () => { cancelAnimationFrame(raf.current); mk.forEach((k) => k.remove()); mk.clear(); m.remove(); map.current = null; overlay.current = null; setReady(false); };
   }, []);
 
-  useEffect(() => { if (flyTo && map.current && ready) map.current.flyTo({ center: [flyTo.lon, flyTo.lat], zoom: Math.max(map.current.getZoom(), 12.2), duration: 900 }); }, [flyTo, ready]);
+  useEffect(() => { if (flyTo && map.current && ready) map.current.flyTo({ center: [flyTo.lon, flyTo.lat], zoom: Math.max(map.current.getZoom(), 12.2), padding: { top: 170, bottom: 220, left: 30, right: window.innerWidth >= 900 ? 420 : 30 }, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900 }); }, [flyTo, ready]);
 
   // L1 precompute per time step: streamlines (wind, swell) and ray fields (crests)
   useEffect(() => {
     if (!depth) return;
     const isOcean = (lat: number, lon: number) => (inGrid(depth, lat, lon) ? depthAt(depth, lat, lon) > 0 : !isLand(lat, lon));
     const tp = spots.find((s) => s.tp !== null)?.tp ?? 9; tpRef.current = tp;
-    windLines.current = wind ? integrateStreamlines(wind, FLOW_BBOX, isOcean, { seedsAcross: 40, stepM: 160, maxSteps: 40, seed: 3 }) : [];
+    windLines.current = windSea ? integrateStreamlines(windSea, FLOW_BBOX, isOcean, { seedsAcross: 40, stepM: 160, maxSteps: 40, seed: 3 }) : [];
     swellLines.current = swell ? integrateStreamlines(refractSwell(swell, depth, tp), FLOW_BBOX, isOcean, { seedsAcross: 28, stepM: 220, maxSteps: 80, seed: 11 }) : [];
     windComets.current = comets(windLines.current, LOOP.wind, TRAIL.wind); thin.current.key = -1;
     const cDeep = phaseSpeed(2000, tp);
     swellComets.current = comets(swellLines.current, LOOP.swell, TRAIL.swell, (lon, lat) => { if (!inGrid(depth, lat, lon)) return 1; const h = depthAt(depth, lat, lon); return h <= 0 ? 1 : Math.min(3, cDeep / phaseSpeed(h, tp)); });
 
-  }, [wind, swell, spots, depth]);
+  }, [windSea, swell, spots, depth]);
 
   // Label collision: the selected break first, then by score; a label (with its callout) is shown only when its screen
   // rect does not overlap an already-placed one. Re-run on every camera move. Widths are estimated from the text
@@ -198,13 +188,15 @@ export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth,
       seen.add(s.id);
       let k = markers.current.get(s.id);
       if (!k) {
-        const root = document.createElement("div"); root.style.cursor = "pointer";
+        const root = document.createElement("div"); root.style.cursor = "pointer"; root.tabIndex = 0; root.setAttribute("role", "button");
+        root.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); propsRef.current.onSelect(s.id); } });
         root.addEventListener("click", (ev) => { ev.stopPropagation(); propsRef.current.onSelect(s.id); });
         k = new Marker({ element: root, anchor: "bottom-left", offset: [-11, 0] }).setLngLat([s.lon, s.lat]).addTo(m); markers.current.set(s.id, k);   // pin tip on the point; label + callout grow to the right
       }
       const sel = selectedId === s.id;
       k.getElement().innerHTML = `<div style="display:flex;align-items:center;gap:4px">${pin(s.tier, s.state)}<span data-label style="padding:3px 6px;border-radius:4px;background:${sel ? "#4798b7" : "rgba(14,33,42,.78)"};font:700 11px 'Barlow',sans-serif;letter-spacing:.04em;text-transform:uppercase;color:${sel ? "#0e2029" : "#fff"}">${esc(s.name.split(" (")[0])}</span>${s.callout ? `<span data-callout style="height:24px;padding:0 8px;border-radius:4px;background:#0e212a;box-shadow:0 3px 10px rgba(0,0,0,.4);display:flex;align-items:center;gap:4px;white-space:nowrap;font:500 10px 'Barlow',sans-serif;color:#fff"><b style="color:${TIER[s.tier]};letter-spacing:.02em">${esc(s.name.split(" (")[0].toUpperCase())}:</b>${esc(s.callout)}</span>` : ""}</div>`;
-      k.getElement().style.zIndex = sel ? "3" : "1";
+      k.getElement().setAttribute("aria-label", `${s.name}, score ${s.score}, select forecast`);
+      k.getElement().style.zIndex = sel ? "5" : "4";
     }
     for (const [id, k] of markers.current) if (!seen.has(id)) { k.remove(); markers.current.delete(id); }
     layoutLabels();
@@ -212,32 +204,44 @@ export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth,
 
   useEffect(() => { const m = map.current; if (!m || !ready) return; m.on("move", layoutLabels); return () => { m.off("move", layoutLabels); }; }, [ready]);
 
-  // deck.gl frame loop: rebuild the interleaved layer stack every frame (animation state lives here)
+  // deck.gl frame loop: update animated layers at up to 30 fps (animation state lives here)
   useEffect(() => {
     if (!ready) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let last = 0, paused = performance.now();
     const tick = () => {
-      raf.current = requestAnimationFrame(tick);
+      if (document.hidden) return;
+      raf.current = reduced.matches ? 0 : requestAnimationFrame(tick);
+      const now = performance.now();
+      if (!reduced.matches && now-last < 1000/30) return;
+      if (!reduced.matches) animationTime.current += Math.min(0.1, Math.max(0, (now-paused)/1000));
+      paused = now; last = now;
       const ov = overlay.current; if (!ov) return;
       const { ribbon: R, wind: Wf, spots: S, buoys: Bu, wavefield: WF, onHover: hov } = propsRef.current;
-      const t = (performance.now() - t0.current) / 1000;
+      const t = animationTime.current;
       const keep = Math.round(Math.min(1, Math.pow(3, (map.current?.getZoom() ?? 12) - 11.5)) * 40) / 40;   // density follows zoom
       if (keep !== thin.current.key) thin.current = { key: keep, wind: windComets.current.filter((c) => c.rank < keep), swell: swellComets.current.filter((c) => c.rank < keep) };
       const out: Layer[] = [];
+      if (geometry) {
+        out.push(new GeoJsonLayer({ id: "ocean-mask", data: geometry.ocean, operation: "mask", filled: true, stroked: false }));
+        out.push(new GeoJsonLayer({ id: "ocean-depth", data: geometry.bathy, ...oceanClip, filled: true, stroked: false,
+          getFillColor: (f) => [...ramp(DEPTH_COLORS, Number(f.properties?.min_depth ?? 0)), 225] as [number,number,number,number] }));
+      }
       const beforeId = "deck-anchor";
       // L1 groundswell: the Rolling Wavefronts shader over the backend wave field; particle trails only while no field is loaded
-      if (WF) out.push(new RollingWavefrontsLayer({ id: "wavefronts", beforeId, image: WF.image, geometry: WF.geometry, bounds: WF.bounds, _imageCoordinateSystem: "lnglat", time: t, omega: WF.omega, speed: 1, tScale: WF.tScale, hMax: WF.hMax, crestEvery: 3, crestWidth: 0.08, opacity: 1, textureParameters: { minFilter: "nearest", magFilter: "nearest" } }));
-      else if (thin.current.swell.length) out.push(new TripsLayer({ id: "groundswell", beforeId, data: thin.current.swell,
+      if (geometry && WF) out.push(new RollingWavefrontsLayer({ id: "wavefronts", beforeId, ...oceanClip, image: WF.image, geometry: WF.geometry, bounds: WF.bounds, _imageCoordinateSystem: "lnglat", time: t, omega: WF.omega, speed: 1, tScale: WF.tScale, hMax: WF.hMax, crestEvery: 3, crestWidth: 0.08, opacity: 1, textureParameters: { minFilter: "nearest", magFilter: "nearest" } }));
+      else if (geometry && thin.current.swell.length) out.push(new TripsLayer({ id: "groundswell", beforeId, ...oceanClip, data: thin.current.swell,
         getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => { const c = groundswellColor(tpRef.current); return [c[0], c[1], c[2], 230]; }, updateTriggers: { getColor: tpRef.current },
         widthUnits: "pixels", getWidth: 2, capRounded: true, jointRounded: true, trailLength: TRAIL.swell, currentTime: (t * 4.5) % LOOP.swell, fadeTrail: true, opacity: 0.9 }));
-      if (thin.current.wind.length) out.push(new TripsLayer({ id: "wind-waves", beforeId, data: thin.current.wind,
+      if (geometry && thin.current.wind.length) out.push(new TripsLayer({ id: "wind-waves", beforeId, ...oceanClip, data: thin.current.wind,
         getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => [255, 255, 255, 150], widthUnits: "pixels", getWidth: 1.1, capRounded: true,
         trailLength: TRAIL.wind, currentTime: (t * 12) % LOOP.wind, fadeTrail: true, opacity: 0.55 }));
       if (R.length) out.push(new PathLayer({ id: "ribbon", beforeId, data: R, getPath: (f: RibbonFeature) => f.geometry.coordinates,
         getColor: (f: RibbonFeature) => { const w = Wf?.at(f.properties.m[1], f.properties.m[0]); if (!w) return [180, 180, 180, 120]; const c = ribbonColor((Math.atan2(w.u, w.v) * 180) / Math.PI, w.speed * 1.944, f.properties.n); return [c[0], c[1], c[2], 235]; },
-        updateTriggers: { getColor: [Wf] }, widthUnits: "pixels", getWidth: 4, widthMinPixels: 3, capRounded: true }));
+        updateTriggers: { getColor: [Wf] }, widthUnits: "pixels", getWidth: 4, widthMinPixels: 3, capRounded: true, jointRounded: true }));
       // L4 (above land): pulses on non-poor breaks (staggered per break, eased), buoy status dots, pickable spot targets
       { const ph = (s: MapSpot) => (t / 2.6 + hash01(s.id)) % 1, ease = (p: number) => 1 - (1 - p) * (1 - p);
-        out.push(new ScatterplotLayer({ id: "pulses", beforeId: "deck-top", data: S.filter((s) => s.tier !== "poor"), getPosition: (s: MapSpot) => [s.lon, s.lat], radiusUnits: "meters", getRadius: (s: MapSpot) => 200 + 1000 * ease(ph(s)) * (s.hs_m / 2 + 0.5), stroked: true, filled: true,
+        out.push(new ScatterplotLayer({ id: "pulses", beforeId: "deck-top", data: reduced.matches ? [] : S.filter((s) => s.id === propsRef.current.selectedId), getPosition: (s: MapSpot) => [s.lon, s.lat], radiusUnits: "meters", getRadius: (s: MapSpot) => 200 + 1000 * ease(ph(s)) * (s.hs_m / 2 + 0.5), stroked: true, filled: true,
           getFillColor: (s: MapSpot) => { const c = hexToRgb(TIER[s.tier]); return [c[0], c[1], c[2], Math.round(36 * (1 - ph(s)))]; }, getLineColor: (s: MapSpot) => { const c = hexToRgb(TIER[s.tier]); return [c[0], c[1], c[2], Math.round(200 * (1 - ph(s)) ** 2)]; }, lineWidthUnits: "pixels", getLineWidth: 1.5, updateTriggers: { getRadius: t, getFillColor: t, getLineColor: t } })); }
       out.push(new ScatterplotLayer({ id: "buoys", beforeId: "deck-top", data: Bu, getPosition: (b: MapBuoy) => [b.lon, b.lat], radiusUnits: "pixels", getRadius: 5, stroked: true, filled: true, lineWidthUnits: "pixels", getLineWidth: 1.5,
         getFillColor: (b: MapBuoy) => (b.ok ? [65, 199, 118, 230] : [156, 158, 161, 200]), getLineColor: [14, 32, 41, 255], pickable: true, updateTriggers: { getFillColor: [Bu] },
@@ -245,15 +249,17 @@ export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth,
       out.push(new ScatterplotLayer({ id: "spot-hit", beforeId: "deck-top", data: S, getPosition: (s: MapSpot) => [s.lon, s.lat], radiusUnits: "pixels", getRadius: 18, getFillColor: [0, 0, 0, 0], pickable: true,
         onHover: (info) => { if (!info.object) { hov(null); return; } const s = info.object as MapSpot; let best: RibbonFeature | null = null, bd = Infinity;
           for (const f of R) { const dx = (f.properties.m[0] - s.lon) * Math.cos((s.lat * Math.PI) / 180), dy = f.properties.m[1] - s.lat; const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = f; } }
-          const w = Wf?.at(s.lat, s.lon); const toward = w ? (Math.atan2(w.u, w.v) * 180) / Math.PI : null;
+          const w = best ? Wf?.at(best.properties.m[1], best.properties.m[0]) : null; const toward = w ? (Math.atan2(w.u, w.v) * 180) / Math.PI : null;
           const ang = best && toward !== null ? Math.abs((((toward - best.properties.n) + 540) % 360) - 180) : null;
-          const rt = ang === null ? null : ang <= 60 ? "offshore" : ang <= 105 ? "cross" : "onshore";
+          const rt = best && toward !== null ? windTier(windAlignment(toward, best.properties.n), (w?.speed ?? 0) * 1.944) : null;
           hov({ kind: "spot", spot: s, x: info.x, y: info.y, ribbonAngle: ang, ribbonTier: rt }); } }));
       ov.setProps({ layers: out });
     };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [ready]);
+    const resume = () => { cancelAnimationFrame(raf.current); paused = performance.now(); last = 0; if (!document.hidden) tick(); };
+    document.addEventListener("visibilitychange", resume); reduced.addEventListener("change", resume); map.current?.on("move", resume);
+    resume();
+    return () => { cancelAnimationFrame(raf.current); document.removeEventListener("visibilitychange", resume); reduced.removeEventListener("change", resume); map.current?.off("move", resume); };
+  }, [ready, geometry, wavefield, wind, spots, selectedId, buoys]);
 
   return <div className="nesurf-map absolute inset-0" style={{ zIndex: 0, isolation: "isolate" }}><div ref={el} className="h-full w-full" /></div>;
 }

@@ -10,6 +10,7 @@ Targets (C = 4): H_s (m), T_p (s), θ_m (rad, direction TO), k (rad/m) — the t
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 from pathlib import Path
 
@@ -25,6 +26,11 @@ def load_geometry():
     if not GEOM.exists():
         from .sdf import build; build()
     g = np.load(GEOM)
+    source_hash = hashlib.sha256((ROOT / "public/data/nh/depth.json").read_bytes()).hexdigest()
+    if "source_hash" not in g or str(g["source_hash"]) != source_hash or "geometry_hash" not in g or "geometry_version" not in g or int(g["geometry_version"]) != 2:
+        g.close()
+        from .sdf import build; build()
+        g = np.load(GEOM)
     return {k: (g[k].item() if g[k].ndim == 0 else g[k]) for k in g.files}
 
 

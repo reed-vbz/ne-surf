@@ -15,10 +15,10 @@ from nesurf import wavefield as WF
 
 
 def teacher_fields(geom: dict, hs0: float, tp: float, dir_from_deg: float) -> torch.Tensor:
-    depth, water, res_m = geom["depth"].astype(float), geom["water"], float(geom["res_m"])
+    depth, water, res_m = geom["depth"].astype(float), geom["water"], tuple(geom["res_m"])
     t = WF.travel_time(depth, water, tp, dir_from_deg, res_m)
-    H = WF.wave_height(depth, water, t, hs0, tp, res_m)
-    gy, gx = np.gradient(np.where(water, t, np.nan), res_m)
+    H = WF.wave_height(depth, water, t, hs0, tp, res_m, WF.inflow_mask(water, dir_from_deg))
+    gy, gx = np.gradient(np.where(water, t, np.nan), *res_m)
     theta_to = np.arctan2(np.nan_to_num(gx), np.nan_to_num(gy))            # bearing of ∇t (east, north) → clockwise from north
     theta_to = np.where(water, theta_to, 0.0)
     _, k = WF.phase_speed(depth, tp); k = np.where(water, k, 0.0)
