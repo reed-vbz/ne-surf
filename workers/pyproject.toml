@@ -12,7 +12,13 @@ dependencies = [
     "xarray>=2024.1",
     "netCDF4>=1.6",
     "global-land-mask>=1.0",
+    "pillow>=10",
+    "scikit-fmm>=2024.05",
+    "mapbox-vector-tile>=2.0",
 ]
+
+[project.optional-dependencies]
+pinn = ["torch>=2.3", "fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27"]
 
 [tool.uv]
 package = false

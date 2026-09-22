@@ -11,6 +11,7 @@ import type { MapBuoy, MapHover, MapSpot } from "@/components/map/MarineMap";
 import { atTime, loadHrrrStep, loadWw3Step, type GridIndex, type HrrrStep, type Ww3Step } from "@/lib/cache";
 import { byDay, dayKeyOf, forecastFor, representativePoint, type ForecastPoint } from "@/lib/forecast";
 import { hourlySeries, tideDay, type HourPoint } from "@/lib/hourly";
+import { loadWavefieldImage, loadWavefieldIndex, type Wavefield, type WavefieldIndex } from "@/lib/wavefield";
 import { TIER, tierFor, WIND_ALIGN } from "@/lib/colors";
 import { bilinearField, windVectorField } from "@/lib/overlays";
 import { assessWind } from "@/lib/quality";
@@ -62,11 +63,13 @@ function PageInner() {
   const [hrrrStep, setHrrrStep] = useState<HrrrStep | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [depth, setDepth] = useState<DepthGrid | null>(null);
+  const [wfIndex, setWfIndex] = useState<WavefieldIndex | null>(null);
+  const [wavefield, setWavefield] = useState<Wavefield | null>(null);
   const [ribbon, setRibbon] = useState<RibbonFeature[]>([]);
   const [todayKey] = useState(() => dayKeyOf(Date.now()));
   const flyKey = useRef(0);
 
-  useEffect(() => { loadDepth().then(setDepth); loadRibbon().then((r) => setRibbon(r.features)); }, []);
+  useEffect(() => { loadDepth().then(setDepth); loadRibbon().then((r) => setRibbon(r.features)); loadWavefieldIndex().then(setWfIndex); }, []);
 
   const forecasts = useMemo(() => REGION_SPOTS.map((spot) => ({ spot, points: forecastFor(spot, data) })), [data]);
   const days = useMemo(() => byDay(forecasts[0]?.points ?? []).slice(0, 7).map((d) => { const x = parts(d.best.valid_time); return { key: d.day, name: x.wd, label: `${x.wd}, ${MONTHS[x.mo - 1]} ${x.day}` }; }), [forecasts]);
@@ -89,6 +92,13 @@ function PageInner() {
     const timer = setTimeout(() => Promise.all([w ? loadWw3Step(w.file) : null, h ? loadHrrrStep(h.file) : null]).then(([ws, hs]) => { if (!live) return; setWw3Step(ws); setHrrrStep(hs); setLoadedFor(mapTime); }), hoverIso ? 120 : 0);
     return () => { live = false; clearTimeout(timer); };
   }, [data.ww3, data.hrrr, mapTime, hoverIso]);
+  // Layer 1 wave field (backend eikonal / PINN texture) for the map's active time
+  useEffect(() => {
+    if (!wfIndex || !mapTime) return; let live = true;
+    const st = atTime(wfIndex.steps, mapTime, 120); if (!st) return;   // keep the last field rather than flashing the particle fallback
+    loadWavefieldImage(st.file).then((image) => { if (live && image) setWavefield({ image, bounds: wfIndex.bounds, omega: st.omega, tScale: wfIndex.encoding.t_scale_s, hMax: wfIndex.encoding.h_max_m, step: st }); });
+    return () => { live = false; };
+  }, [wfIndex, mapTime]);
   const stepLoading = !!mapTime && loadedFor !== mapTime;
   const wind = useMemo<FlowField | null>(() => data.hrrr && hrrrStep ? windVectorField({ index: data.hrrr.index, step: hrrrStep }) : data.ww3 && ww3Step ? windVectorField({ index: data.ww3.index, step: ww3Step }) : null, [data.hrrr, data.ww3, hrrrStep, ww3Step]);
   // L1: groundswell = the primary WW3 swell partition (whole-spectrum peak where no partition), wind waves = the WW3 wind-sea partition (HRRR wind where absent)
@@ -143,7 +153,7 @@ function PageInner() {
       <OverviewScreen m={refMode ? REFERENCE_MODEL : model}
         h={{ onPrev: () => setDayIdx((i) => Math.max(0, i - 1)), onNext: () => setDayIdx((i) => Math.min(days.length - 1, i + 1)), onPickDay: setDayIdx,
              onForecast: () => setDrawerPref(!drawerOpen), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
-        map={<MarineMap spots={spots} buoys={buoys} wind={windWaves} swell={swell} depth={depth} ribbon={ribbon} onHover={setHover} selectedId={selected} onSelect={setSelected} flyTo={flyTo} />}
+        map={<MarineMap spots={spots} buoys={buoys} wind={windWaves} swell={swell} wavefield={wavefield} depth={depth} ribbon={ribbon} onHover={setHover} selectedId={selected} onSelect={setSelected} flyTo={flyTo} />}
         dockExtras={!refMode && focus ? <>
           <div style={dockCard}><PolarRadar trains={radarPoint?.cond.trains ?? []} facingDeg={focus.spot.facing_deg} window={focus.spot.swell.window} title="Swell radar" sub={`${shortName(focus.spot.name)}${mapTime ? ` · ${hourWord(Date.parse(mapTime))}` : ""}`} /></div>
           <div style={dockCard}><SpectraGraph buoy={nearestBuoy} trains={radarPoint?.cond.trains ?? []} spotName={shortName(focus.spot.name)} hourLabel={mapTime ? hourWord(Date.parse(mapTime)) : ""} /></div>

@@ -28,6 +28,8 @@ import "./map.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { TripsLayer } from "@deck.gl/geo-layers";
+import RollingWavefrontsLayer from "./RollingWavefrontsLayer";
+import type { Wavefield } from "@/lib/wavefield";
 import type { Layer } from "@deck.gl/core";
 import { useEffect, useRef, useState } from "react";
 import { hexToRgb, ramp, ribbonColor, TIER, type Tier } from "@/lib/colors";
@@ -41,7 +43,7 @@ export interface MapSpot { id: string; name: string; state: string; lat: number;
 export interface MapBuoy { id: string; lat: number; lon: number; ok: boolean; label: string }
 export type MapHover = { kind: "spot"; spot: MapSpot; x: number; y: number; ribbonAngle: number | null; ribbonTier: string | null } | { kind: "buoy"; buoy: MapBuoy; x: number; y: number };
 interface Props {
-  spots: MapSpot[]; buoys: MapBuoy[]; wind: FlowField | null; swell: FlowField | null; depth: DepthGrid | null; ribbon: RibbonFeature[];
+  spots: MapSpot[]; buoys: MapBuoy[]; wind: FlowField | null; swell: FlowField | null; wavefield: Wavefield | null; depth: DepthGrid | null; ribbon: RibbonFeature[];
   onHover: (h: MapHover | null) => void; selectedId: string | null; onSelect: (id: string | null) => void; flyTo: { lon: number; lat: number; key: number } | null;
 }
 
@@ -115,7 +117,7 @@ function refractSwell(field: FlowField, g: DepthGrid, tpS: number, maxDepth = 45
   } };
 }
 
-export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, onHover, selectedId, onSelect, flyTo }: Props) {
+export default function MarineMap({ spots, buoys, wind, swell, wavefield, depth, ribbon, onHover, selectedId, onSelect, flyTo }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const overlay = useRef<MapboxOverlay | null>(null);
@@ -129,8 +131,8 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
   const tpRef = useRef(9);
   const raf = useRef(0);
   const t0 = useRef(0);
-  const propsRef = useRef({ spots, buoys, ribbon, wind, selectedId, onHover, onSelect });
-  useEffect(() => { propsRef.current = { spots, buoys, ribbon, wind, selectedId, onHover, onSelect }; });
+  const propsRef = useRef({ spots, buoys, ribbon, wind, wavefield, selectedId, onHover, onSelect });
+  useEffect(() => { propsRef.current = { spots, buoys, ribbon, wind, wavefield, selectedId, onHover, onSelect }; });
 
   useEffect(() => {
     if (!el.current || map.current) return;
@@ -216,13 +218,15 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
     const tick = () => {
       raf.current = requestAnimationFrame(tick);
       const ov = overlay.current; if (!ov) return;
-      const { ribbon: R, wind: Wf, spots: S, buoys: Bu, onHover: hov } = propsRef.current;
+      const { ribbon: R, wind: Wf, spots: S, buoys: Bu, wavefield: WF, onHover: hov } = propsRef.current;
       const t = (performance.now() - t0.current) / 1000;
       const keep = Math.round(Math.min(1, Math.pow(3, (map.current?.getZoom() ?? 12) - 11.5)) * 40) / 40;   // density follows zoom
       if (keep !== thin.current.key) thin.current = { key: keep, wind: windComets.current.filter((c) => c.rank < keep), swell: swellComets.current.filter((c) => c.rank < keep) };
       const out: Layer[] = [];
       const beforeId = "deck-anchor";
-      if (thin.current.swell.length) out.push(new TripsLayer({ id: "groundswell", beforeId, data: thin.current.swell,
+      // L1 groundswell: the Rolling Wavefronts shader over the backend wave field; particle trails only while no field is loaded
+      if (WF) out.push(new RollingWavefrontsLayer({ id: "wavefronts", beforeId, image: WF.image, bounds: WF.bounds, _imageCoordinateSystem: "lnglat", time: t, omega: WF.omega, speed: 1, tScale: WF.tScale, hMax: WF.hMax, crestEvery: 3, opacity: 0.95, textureParameters: { minFilter: "nearest", magFilter: "nearest" } }));
+      else if (thin.current.swell.length) out.push(new TripsLayer({ id: "groundswell", beforeId, data: thin.current.swell,
         getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => { const c = groundswellColor(tpRef.current); return [c[0], c[1], c[2], 230]; }, updateTriggers: { getColor: tpRef.current },
         widthUnits: "pixels", getWidth: 2, capRounded: true, jointRounded: true, trailLength: TRAIL.swell, currentTime: (t * 4.5) % LOOP.swell, fadeTrail: true, opacity: 0.9 }));
       if (thin.current.wind.length) out.push(new TripsLayer({ id: "wind-waves", beforeId, data: thin.current.wind,

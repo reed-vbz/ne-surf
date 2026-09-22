@@ -9,4 +9,5 @@ $PY -m nesurf.fetch_hrrr --res 0.05
 $PY -m nesurf.fetch_ndbc
 $PY -m nesurf.fetch_tides
 $PY -m nesurf.calibrate
+$PY -m nesurf.wavefield
 echo "ingest done $(date -u +%FT%TZ)"

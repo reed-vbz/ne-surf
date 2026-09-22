@@ -24,6 +24,7 @@ jobs:
       - run: cd workers && .venv/bin/python -m nesurf.fetch_ndbc
       - run: cd workers && .venv/bin/python -m nesurf.fetch_tides
       - run: cd workers && .venv/bin/python -m nesurf.calibrate
+      - run: cd workers && .venv/bin/python -m nesurf.wavefield
       - name: publish cache to the data branch
         run: |
           set -e
