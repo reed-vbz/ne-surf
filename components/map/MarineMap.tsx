@@ -47,7 +47,7 @@ interface Props {
 
 const B = REGION_BBOX;
 const BOUNDS: LngLatBoundsLike = [[B.west, B.south], [B.east, B.north]];
-const FIT = { padding: { top: 210, bottom: 150, left: 8, right: 8 } };
+const FIT = { padding: { top: 120, bottom: 180, left: 8, right: 8 } };
 const LAND = "#1a2a33";
 const STYLE: StyleSpecification = {
   version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",

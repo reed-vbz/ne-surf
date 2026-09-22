@@ -52,3 +52,9 @@ forecast button are glass (backdrop-blur over the map); the layer info card is g
 Reed: 'not much space — size and format it like it was designed for an OS'. The bottom-left legends and bottom-right hotspot card became a
 widget dock: one row of uniform glass cards (148×164, radius 12, 8-pt gaps) that scroll-snaps horizontally on phones and sits as one row on
 desktop. The fixture shows Hotspot + Legend; the radar and spectra cards are dynamic and sit between them in the live app.
+
+## v6 — 2026-09-22 (later)
+
+Reed: 'the top header is so big — show the full 7-day forecast and just the timeline, compact at the top'. The title row, the forecast strip and the
+separate timeline card became ONE glass bar (≈106 px on a phone): a 28 px title row (logo, title, date, menu) and a 7-day forecast timeline where
+each day column shows its range, period · wind and a tier-coloured segment; the knob rides over the segments. The forecast button moved up to top 118.

@@ -108,29 +108,8 @@ function PageInner() {
   const windWord = !hotWind ? "" : hotWind.label === "offshore" || hotWind.label === "glassy" ? "Optimal" : hotWind.label === "onshore" || hotWind.label === "cross-on" ? "Onshore" : "Cross-shore";
   const go = (id: string) => { const s = REGION_SPOTS.find((x) => x.id === id); if (!s) { router.push(`/spots/${id}`); return; } setSelected(id); setFlyTo({ lon: s.location.lon, lat: s.location.lat, key: ++flyKey.current }); };
 
-  // Anticipatory pill: the best break at the map's active hour (score of the point nearest mapTime), with its wind outlook
   const nearest = (pts: ForecastPoint[], iso: string | null) => (iso ? pts.reduce((b, p) => (Math.abs(Date.parse(p.valid_time) - Date.parse(iso)) < Math.abs(Date.parse(b.valid_time) - Date.parse(iso)) ? p : b), pts[0]) : null);
   const hourWord = (t: number) => { const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: NY, hour: "numeric", hour12: false }).format(new Date(t))) % 24; return h === 0 ? "midnight" : h === 12 ? "noon" : h < 12 ? `${h} AM` : `${h - 12} PM`; };
-  const strip = useMemo(() => {
-    const cands = daily.map((d) => ({ d, p: nearest(d.points, mapTime) })).filter((x) => x.p);
-    if (!cands.length || !mapTime) return { headline: data.loading ? "Reading the forecast…" : "No forecast yet", detail: "", accent: "#9c9ea1" };
-    const best = cands.reduce((b, x) => (x.p!.result.score > b.p!.result.score ? x : b), cands[0]); const p = best.p!, sp = best.d.spot, tier = tierFor(p.result.score);
-    const name = shortName(sp.name).charAt(0) + shortName(sp.name).slice(1).toLowerCase(), lo = Math.max(1, Math.round(p.result.face_ft)), hi = Math.round(p.result.face_ft * 1.3);
-    const size = `${lo}–${hi} ft${p.result.dominant ? ` @ ${p.result.dominant.tp.toFixed(0)} s` : ""}`;
-    const dirWord = p.result.dominant ? ` (${compass(p.result.dominant.dp)})` : "";
-    const headline = `${tier === "green" ? "⚡ " : ""}${name} · ${size}${dirWord}`;
-    const hrs = day ? hourlySeries(best.d.points, day, data.hrrr?.spots.spots.find((s) => s.id === sp.id)?.series) : [];
-    const t0 = Date.parse(mapTime); const ahead = hrs.filter((h) => h.t >= t0 - 1.8e6 && h.t <= t0 + 6 * 3.6e6 && h.windKts != null && h.windFrom != null);
-    const off = ahead.map((h) => ({ h, a: assessWind(sp, { speed_kts: h.windKts!, dir_from_deg: h.windFrom! }) }));
-    const peak = off.reduce<typeof off[number] | null>((b, x) => (!b || x.a.offshore_kts > b.a.offshore_kts ? x : b), null);
-    const now = off.find((x) => Math.abs(x.h.t - t0) <= 1.8e6) ?? off[0];
-    const bits: string[] = [];
-    if (now) bits.push(`${compass(now.h.windFrom!)} ${Math.round(now.h.windKts!)} kt · ${now.a.label}`);
-    if (peak && peak.a.offshore_kts > 2 && peak.h.t - t0 > 1.8e6) bits.push(`offshore peaks ${hourWord(peak.h.t)}`);
-    if (p.cond.tide) bits.push(`tide ${p.cond.tide.height_m.toFixed(1)} m ${p.cond.tide.phase}`);
-    bits.push(`${parts(mapTime).wd} ${hourWord(t0)}`);
-    return { headline, detail: bits.join(" · "), accent: TIER[tier] };
-  }, [daily, mapTime, day, data.hrrr, data.loading]);
   const radarPoint = focus ? nearest(focus.points, mapTime) : null;
   const nearestBuoy = useMemo(() => { if (!focus || !data.ww3) return null; const cands = (data.ww3.spots.buoys ?? []).filter((b) => focus.spot.buoys.includes(b.id));
     const b = (cands.length ? cands : data.ww3.spots.buoys ?? []).map((b) => ({ b, d: Math.hypot(b.position.lat - focus.spot.location.lat, (b.position.lon - focus.spot.location.lon) * 0.73) })).sort((a, c) => a.d - c.d)[0]?.b;
@@ -142,9 +121,13 @@ function PageInner() {
       wind: b.cond.wind ? `${compass(b.cond.wind.dir_from_deg)} ${Math.round(b.cond.wind.speed_kts)} kt${w ? ` · ${w.label}` : ""}` : "wind n/a", active: i === dayIdx }; }) : [];
   const tide = useMemo(() => tideDay(focus ? data.tides[focus.spot.tide.station_id] ?? null : null, day ?? ""), [focus, data.tides, day]);
 
+  // the header's 7-day row: the region's best break per day
+  const dayBest = days.map((d) => forecasts.map(({ points }) => byDay(points).find((x) => x.day === d.key)?.best ?? null).reduce<ForecastPoint | null>((b, p) => (p && (!b || p.result.score > b.result.score) ? p : b), null));
   const model: ScreenModel = {
     dateLabel: days[dayIdx]?.label ?? "",
-    days: (days.length ? days : Array.from({ length: 7 }, (_, i) => ({ key: String(i), name: "", label: "" }))).map((d, i) => ({ name: d.name, filled: i <= dayIdx, active: i === dayIdx })),
+    days: (days.length ? days : Array.from({ length: 7 }, (_, i) => ({ key: String(i), name: "", label: "" }))).map((d, i) => { const b = dayBest[i];
+      return { name: d.name, filled: i <= dayIdx, active: i === dayIdx, range: b ? `${Math.max(1, Math.round(b.result.face_ft))}–${Math.round(b.result.face_ft * 1.3)} ft` : "—",
+        meta: b ? `${b.result.dominant ? `${b.result.dominant.tp.toFixed(0)} s` : ""}${b.cond.wind ? ` · ${compass(b.cond.wind.dir_from_deg)}` : ""}` : "", tierColor: b ? TIER[tierFor(b.result.score)] : "#2c3f49" }; }),
     selectedIndex: dayIdx,
     knobFraction: hoverHour !== null ? hoverHour / 24 : undefined,
     callouts: [],   // callouts are anchored to pins by the map layer
@@ -153,14 +136,13 @@ function PageInner() {
           line1: `${shortName(hot.spot.name).charAt(0) + shortName(hot.spot.name).slice(1).toLowerCase()}: ${Math.max(1, Math.round(hot.best.result.face_ft))}-${Math.round(hot.best.result.face_ft * 1.3)}ft${hot.best.result.dominant ? ` @ ${hot.best.result.dominant.tp.toFixed(0)}s` : ""}`,
           line2: hot.best.cond.wind ? `${compass(hot.best.cond.wind.dir_from_deg)} wind · ${windWord}` : "" }
       : { rating: "—", ratingColor: "#9c9ea1", pinColor: "#9c9ea1", line1: data.error ?? "Loading forecast", line2: "" },
-    forecast: strip,
   };
 
   return (
     <main style={{ position: "fixed", inset: 0 }}>
       <OverviewScreen m={refMode ? REFERENCE_MODEL : model}
         h={{ onPrev: () => setDayIdx((i) => Math.max(0, i - 1)), onNext: () => setDayIdx((i) => Math.min(days.length - 1, i + 1)), onPickDay: setDayIdx,
-             onStrip: () => { const id = daily.map((d) => ({ d, p: nearest(d.points, mapTime) })).filter((x) => x.p).sort((a, b) => b.p!.result.score - a.p!.result.score)[0]?.d.spot.id; if (id) { go(id); setDrawerPref(true); } }, onForecast: () => setDrawerPref(!drawerOpen), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
+             onForecast: () => setDrawerPref(!drawerOpen), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
         map={<MarineMap spots={spots} buoys={buoys} wind={windWaves} swell={swell} depth={depth} ribbon={ribbon} onHover={setHover} selectedId={selected} onSelect={setSelected} flyTo={flyTo} />}
         dockExtras={!refMode && focus ? <>
           <div style={dockCard}><PolarRadar trains={radarPoint?.cond.trains ?? []} facingDeg={focus.spot.facing_deg} window={focus.spot.swell.window} title="Swell radar" sub={`${shortName(focus.spot.name)}${mapTime ? ` · ${hourWord(Date.parse(mapTime))}` : ""}`} /></div>
