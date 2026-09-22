@@ -96,8 +96,8 @@ MapLibre GL + deck.gl `MapboxOverlay` (interleaved) + self-hosted MVT:
 
 | Layer | Source | Rendering |
 |---|---|---|
-| L0 bathymetric base | NOAA CRM 3″ isobath polygons (`workers/nesurf/sandbox_nh.py` → `public/tiles/nh/{z}/{x}/{y}.pbf`, layer `bathy`) | MapLibre `fill`, `interpolate` on `min_depth`: #00E5FF (0–5 m) → #0099CC → #0B192C |
-| L1 physics | HRRR wind + WW3 swell fields → RK2 streamlines (`lib/streamlines.ts`), CRM ray tracing (`lib/refraction.ts`) | deck.gl `TripsLayer` comets (wind cyan, swell energy-coloured), `PathLayer` crest fans |
+| L0 bathymetric base | NOAA CRM 3″ isobaths as *nested* contours cut from one smoothed field, speckle < 16 cells absorbed, then differenced so adjacent bins share exact edges (`workers/nesurf/sandbox_nh.py` → `public/tiles/nh/{z}/{x}/{y}.pbf` z8–13, layer `bathy`) | MapLibre `fill`, `interpolate` on `min_depth`: #00E5FF (0–5 m) → #0099CC → #0B192C |
+| L1 physics | HRRR wind + WW3 swell fields → the swell is Snell-refracted on the CRM grid inside the 45 m contour, then RK2 streamlines (`lib/streamlines.ts`); CRM ray tracing for crests (`lib/refraction.ts`) | deck.gl `TripsLayer` comets: each streamline has a random phase and is emitted in loop-spaced copies so heads flow continuously (no lockstep pulses); density thins with zoom; `PathLayer` crest lines only inside the 15 m contour, caustic folds dropped, Chaikin-smoothed |
 | L2 nearshore ribbon | 100 m high-water-mark segments with land→sea normal + exposure (`public/data/nh/ribbon.geojson`, MVT layer `ribbon`) | deck.gl `PathLayer`, #00FF88 / #FFB800 / #FF3366 by wind-to-beach angle |
 | L3 land mask | CRM open-water land polygons (MVT layer `land`, `land.geojson`, `ocean.geojson`) | zero bleed at the data level (streamlines only over CRM water, rays stop at the shore) + optional opaque chart-land fill |
 | L4 annotations | `spots.geojson` | deck.gl `ScatterplotLayer` pulses + HTML pins; hover → React tooltip (height, period, wind, angle off the normal, tier) |

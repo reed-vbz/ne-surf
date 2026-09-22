@@ -1,5 +1,7 @@
 /** New Hampshire Sandbox static data (public/data/nh, produced by workers/nesurf/sandbox_nh.py). */
-export const NH_BBOX = { south: 42.78, north: 43.20, west: -70.95, east: -70.40 };
+export const NH_BBOX = { south: 42.70, north: 43.35, west: -70.95, east: -70.15 };
+/** true when (lat, lon) falls inside the depth grid (outside it depthAt() reports 0, which would read as land) */
+export const inGrid = (g: DepthGrid, lat: number, lon: number) => lat >= g.lat0 && lon >= g.lon0 && lat < g.lat0 + g.nlat * g.res && lon < g.lon0 + g.nlon * g.res;
 
 export interface DepthGrid { lat0: number; lon0: number; res: number; nlat: number; nlon: number; data: Uint16Array }
 

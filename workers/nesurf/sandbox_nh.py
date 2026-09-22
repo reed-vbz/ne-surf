@@ -1,7 +1,7 @@
 """
 New Hampshire Sandbox data (5-layer marine architecture) from the NOAA Coastal Relief Model, 3 arc-second.
 
-    python -m nesurf.sandbox_nh          # -> public/data/nh/*.json|geojson  +  public/tiles/nh/{z}/{x}/{y}.pbf (z 8–14)
+    python -m nesurf.sandbox_nh          # -> public/data/nh/*.json|geojson  +  public/tiles/nh/{z}/{x}/{y}.pbf (z 8–13)
 
 Outputs
   depth.json          uint16 decimetre depth grid (base64), lat/lon origin + res; 0 = land   → client ocean test, refraction
@@ -33,8 +33,10 @@ from .coastline import ribbon as ribbon_segments
 from .common import REPO_ROOT, load_spots
 
 CRM_URL = "https://www.ngdc.noaa.gov/thredds/dodsC/crm/crm_vol1.nc"
-S, N, W, E = 42.78, 43.20, -70.95, -70.40          # Salisbury MA → Long Sands ME
+S, N, W, E = 42.70, 43.35, -70.95, -70.15          # Plum Island MA → Ogunquit ME, out past the 100 m shelf
 BINS = [(0, 2), (2, 5), (5, 10), (10, 20), (20, 40), (40, 80), (80, 150), (150, 400)]
+MIN_CELLS = 16          # isobath speckle: regions / holes below this many 90 m cells are absorbed into their surroundings
+MAX_ZOOM = 13           # MapLibre overzooms vector tiles; z13 (≈14 m/px here) is plenty for smoothed isobaths
 OUT = REPO_ROOT / "public" / "data" / "nh"; TILES = REPO_ROOT / "public" / "tiles" / "nh"
 R = 6378137.0
 
@@ -62,8 +64,14 @@ def main() -> int:
     water = depth > 0
     r = 5; yy, xx = np.ogrid[-r:r + 1, -r:r + 1]; disk = (xx * xx + yy * yy) <= r * r
     water = ndimage.binary_dilation(ndimage.binary_opening(water, structure=disk), structure=np.ones((3, 3), bool)) & water
+    # inland ponds the CRM carries below sea level are not ocean: keep water bodies ≥ 3 km² or touching the bbox edge
+    lab, n = ndimage.label(water); sizes = np.bincount(lab.ravel())
+    edge = np.zeros(n + 1, bool); edge[np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))] = True
+    cell_km2 = (res * 111.32) ** 2 * math.cos(math.radians(43))
+    keep = (sizes >= 3.0 / cell_km2) | edge; keep[0] = False
+    water &= keep[lab]
     depth[~water] = 0
-    print(f"grid {depth.shape}, water {water.mean():.2f}", flush=True)
+    print(f"grid {depth.shape}, water {water.mean():.2f}, water bodies kept {int(keep.sum())} of {n}", flush=True)
 
     # depth grid for the client (decimetres, uint16)
     q = np.clip(np.round(depth * 10), 0, 65535).astype("<u2")
@@ -100,11 +108,24 @@ def main() -> int:
     (OUT / "ocean.geojson").write_text(json.dumps(fc([{"type": "Feature", "properties": {}, "geometry": mapping(ocean)}]), separators=(",", ":")))
     print(f"land polygons {len(land)}", flush=True)
 
+    # Isobaths: nested cumulative contours ("deeper than lo") cut from ONE lightly smoothed field, each cleaned of
+    # speckle, smoothed once, then differenced against the next contour — so adjacent bins share exact edges
+    # (no hairline gaps showing the satellite through) and no single-cell squares survive.
+    depth_s = ndimage.gaussian_filter(depth, 1.2); depth_s[~water] = 0
+    def declutter(m):
+        lab, n = ndimage.label(m); sizes = np.bincount(lab.ravel()); m = m & (sizes[lab] >= MIN_CELLS)
+        lab, n = ndimage.label(~m); sizes = np.bincount(lab.ravel()); holes = (~m) & (sizes[lab] < MIN_CELLS)
+        return (m | holes) & water
+    cum = []
+    for lo, _ in BINS:
+        g = unary_union(polys(declutter(water & (depth_s > lo)))).buffer(0)
+        if cum: g = g.intersection(cum[-1]).buffer(0)      # enforce nesting after independent smoothing
+        cum.append(g)
     bathy = []
-    for lo, hi in BINS:
-        m = water & (depth > lo) & (depth <= hi)
-        for g in polys(m):
-            if g.area * 111 * 111 * math.cos(math.radians(43)) < 0.005: continue
+    for k, (lo, hi) in enumerate(BINS):
+        band = cum[k].difference(cum[k + 1]).buffer(0) if k + 1 < len(cum) else cum[k]
+        for g in (band.geoms if band.geom_type == "MultiPolygon" else [band]):
+            if g.is_empty or g.area * 111 * 111 * math.cos(math.radians(43)) < 0.004: continue
             bathy.append({"type": "Feature", "properties": {"min_depth": lo, "max_depth": hi}, "geometry": mapping(g)})
     (OUT / "bathy.geojson").write_text(json.dumps(fc(bathy), separators=(",", ":")))
     print(f"isobath polygons {len(bathy)}", flush=True)
@@ -128,7 +149,7 @@ def main() -> int:
     to_m = lambda g: transform(lambda x, y, z=None: merc(x, y), g)
     layers_m = {k: [(to_m(g), p) for g, p in v] for k, v in layers_src.items()}
     count = 0
-    for zl in range(8, 15):
+    for zl in range(8, MAX_ZOOM + 1):
         x0, y0 = lonlat_to_tile(W, N, zl); x1, y1 = lonlat_to_tile(E, S, zl)
         for x in range(x0, x1 + 1):
             for y in range(y0, y1 + 1):
@@ -140,6 +161,9 @@ def main() -> int:
                     for g, p in feats:
                         if not g.intersects(clip): continue
                         c = g.intersection(clip)
+                        if c.geom_type == "GeometryCollection":   # shared edges leave stray lines/points after the clip
+                            want = "Polygon" if name != "ribbon" else "LineString"
+                            c = unary_union([x for x in c.geoms if x.geom_type.endswith(want)])
                         if c.is_empty: continue
                         fs.append({"geometry": c.wkb, "properties": p})
                     if fs: tile_layers.append({"name": name, "features": fs})

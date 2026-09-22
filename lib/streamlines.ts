@@ -1,10 +1,11 @@
 /**
  * Streamline integration for the GPU flow layers (Layer 1). Seeds are laid on a jittered grid over the ocean,
  * each integrated forward and backward through a vector field with RK2 (midpoint), producing polylines the
- * deck.gl PathLayer renders with an animated dash offset so the flow appears to move. All geometry is lon/lat.
+ * deck.gl TripsLayer renders as comets. Each line carries a random phase and a random length so the field reads
+ * as a continuous flow rather than a grid of streaks that all start and stop together. All geometry is lon/lat.
  */
 export interface FlowField { at(lat: number, lon: number): { u: number; v: number; speed: number } | null }
-export interface Streamline { path: Array<[number, number]>; speed: number }
+export interface Streamline { path: Array<[number, number]>; speed: number; phase: number; rank: number }   // phase ∈ [0,1) staggers the comet; rank ∈ [0,1) lets the renderer thin the field at low zoom
 
 export function integrateStreamlines(field: FlowField, bbox: { south: number; north: number; west: number; east: number }, isOcean: (lat: number, lon: number) => boolean,
   opts: { seedsAcross?: number; stepM?: number; maxSteps?: number; seed?: number } = {}): Streamline[] {
@@ -24,12 +25,13 @@ export function integrateStreamlines(field: FlowField, bbox: { south: number; no
     const la = lat + rnd() * dlat, lo = lon + rnd() * dlon;
     if (!isOcean(la, lo)) continue;
     const a0 = field.at(la, lo); if (!a0) continue;
+    const phase = rnd(), rank = rnd(), steps = Math.round(maxSteps * (0.55 + 0.45 * rnd()));
     const fwd: Array<[number, number]> = []; let p: [number, number] | null = [la, lo];
-    for (let i = 0; i < maxSteps && p; i++) { p = step(p[0], p[1], 1); if (p) fwd.push([p[1], p[0]]); }
+    for (let i = 0; i < steps && p; i++) { p = step(p[0], p[1], 1); if (p) fwd.push([p[1], p[0]]); }
     const bwd: Array<[number, number]> = []; p = [la, lo];
-    for (let i = 0; i < maxSteps && p; i++) { p = step(p[0], p[1], -1); if (p) bwd.push([p[1], p[0]]); }
+    for (let i = 0; i < steps && p; i++) { p = step(p[0], p[1], -1); if (p) bwd.push([p[1], p[0]]); }
     const path = [...bwd.reverse(), [lo, la] as [number, number], ...fwd];
-    if (path.length >= 6) out.push({ path, speed: a0.speed });
+    if (path.length >= 6) out.push({ path, speed: a0.speed, phase, rank });
   }
   return out;
 }
