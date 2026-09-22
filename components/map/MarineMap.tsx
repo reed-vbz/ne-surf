@@ -9,8 +9,11 @@
  *                       Every streamline has a random phase and is emitted in loop-spaced copies, so heads flow continuously
  *                       (no pulsing); the swell field is Snell-refracted on the depth grid before integration.
  *   L2 nearshore ribbon deck.gl PathLayer, 100 m shoreline segments, wind-to-beach colour #00FF88 / #FFB800 / #FF3366
- *   L3 land mask        opaque land `fill` (antialiased) ABOVE L0–L2: the land polygon is the exact complement of the 0 m
- *                       isobath, so nothing can bleed; L1 geometry additionally never exists over land (data-level).
+ *   L3 land mask        satellite land (Reed, 2026-09-22: "I want satellite view for the land"), so the mask is enforced by
+ *                       the data instead of an opaque fill: L0 polygons are ocean-only and share the 0 m outline with the
+ *                       land polygon, L1 streamlines exist only over water and rays stop at the shore, L2 sits on the
+ *                       shoreline. The antialiased shoreline line (layer `land`) is drawn above L0–L2; the opaque fill is
+ *                       kept in the style at opacity 0 (`land-fill`) for a chart look if ever wanted.
  *   L4 annotations      pulses (deck.gl), spot pins + callouts (HTML markers), buoy status dots, hover → React tooltip.
  *
  * Deviation from the directive, verified: deck.gl 9.4's MaskExtension does not render interleaved on MapLibre 6, and
@@ -50,16 +53,16 @@ const STYLE: StyleSpecification = {
   },
   layers: [
     { id: "bg", type: "background", paint: { "background-color": LAND } },
-    { id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.35, "raster-brightness-max": 0.6 } },
+    { id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.3, "raster-brightness-max": 0.75 } },
     // L0 — ocean floor: data-driven on the isobath polygon's min_depth
     { id: "bathy", type: "fill", source: "region", "source-layer": "bathy", paint: {
       "fill-color": ["interpolate", ["linear"], ["get", "min_depth"], 0, "#00E5FF", 5, "#00C4EA", 10, "#00ADD8", 20, "#0099CC", 40, "#0A6FA6", 80, "#0C3F72", 100, "#0B192C"],
-      "fill-opacity": 0.92, "fill-antialias": false } },
+      "fill-opacity": 0.85, "fill-antialias": false } },
     { id: "bathy-edge", type: "line", source: "region", "source-layer": "bathy", paint: { "line-color": "#00E5FF", "line-opacity": 0.10, "line-width": 0.6 } },
     { id: "deck-anchor", type: "background", paint: { "background-opacity": 0 } },   // L1 + L2 (deck.gl) interleave before this
-    // L3 — opaque land above L0–L2 (zero bleed), unsimplified client-side, antialiased
-    { id: "land-fill", type: "fill", source: "region", "source-layer": "land", paint: { "fill-color": LAND, "fill-opacity": 1, "fill-antialias": true } },
-    { id: "land-edge", type: "line", source: "region", "source-layer": "land", paint: { "line-color": "#dff7ff", "line-opacity": 0.55, "line-width": 1 } },
+    // L3 — land above L0–L2: satellite shows through (fill at 0), the antialiased shoreline line marks the exact 0 m edge
+    { id: "land-fill", type: "fill", source: "region", "source-layer": "land", paint: { "fill-color": LAND, "fill-opacity": 0, "fill-antialias": true } },
+    { id: "land-edge", type: "line", source: "region", "source-layer": "land", paint: { "line-color": "#dff7ff", "line-opacity": 0.5, "line-width": 1 } },
     { id: "deck-top", type: "background", paint: { "background-opacity": 0 } },      // L4 deck layers interleave before this
   ],
 };
