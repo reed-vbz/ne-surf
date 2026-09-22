@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: nesurf-workers
+Version: 0.1.0
+Summary: NOAA data ingestion workers for the New England surf forecast app
+Requires-Python: >=3.11
+Requires-Dist: numpy>=1.26
+Requires-Dist: eccodes>=2.37
+Requires-Dist: requests>=2.31
+Requires-Dist: jsonschema>=4.20
+Requires-Dist: scipy>=1.12
+Requires-Dist: xarray>=2024.1
+Requires-Dist: netCDF4>=1.6
+Requires-Dist: global-land-mask>=1.0
+Requires-Dist: pillow>=10
+Requires-Dist: scikit-fmm>=2024.05
+Requires-Dist: mapbox-vector-tile>=2.0
+Provides-Extra: pinn
+Requires-Dist: torch>=2.3; extra == "pinn"
+Requires-Dist: fastapi>=0.110; extra == "pinn"
+Requires-Dist: uvicorn>=0.29; extra == "pinn"
+Requires-Dist: httpx>=0.27; extra == "pinn"
