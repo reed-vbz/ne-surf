@@ -8,12 +8,16 @@
 import { useState, type PointerEvent } from "react";
 import { TIER, type Tier } from "@/lib/colors";
 import type { HourPoint } from "@/lib/hourly";
+import WaveAvatar, { type WindLabel } from "./WaveAvatar";
 
 export interface DayRow { key: string; label: string; tier: Tier; range: string; period: string; wind: string; active: boolean }
 interface Props {
   open: boolean; onClose: () => void; spotName: string; tier: Tier; dayLabel: string;
   hours: HourPoint[]; tide: { series: Array<{ t: number; v: number }>; hilo: Array<{ t: number; v: number; type: "H" | "L" }> };
   activeHour: number | null; onHoverHour: (h: number | null) => void; days: DayRow[]; onPickDay: (i: number) => void;
+  windAt: (h: HourPoint) => WindLabel;
+  /** hour the map is showing when nothing is hovered (local 0–23) */
+  defaultHour: number | null;
 }
 const compass = (d: number) => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
 const TIER_WORD: Record<Tier, string> = { green: "Green", moderate: "Moderate", poor: "Poor" };
@@ -31,10 +35,11 @@ function Row({ title, value, children, h = 54 }: { title: string; value: string;
   );
 }
 
-export default function ForecastDrawer({ open, onClose, spotName, tier, dayLabel, hours, tide, activeHour, onHoverHour, days, onPickDay }: Props) {
+export default function ForecastDrawer({ open, onClose, spotName, tier, dayLabel, hours, tide, activeHour, onHoverHour, days, onPickDay, windAt, defaultHour }: Props) {
   const [tab, setTab] = useState<"hourly" | "daily">("hourly");
   const onMove = (e: PointerEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); const f = (e.clientX - r.left - (PADL / W) * r.width) / (((X1 - X0) / W) * r.width); onHoverHour(Math.max(0, Math.min(23, Math.round(f * 23)))); };
-  const cur = activeHour !== null ? hours.find((p) => p.hour === activeHour) ?? null : hours[Math.min(hours.length - 1, 12)] ?? null;
+  const shown = activeHour ?? defaultHour;
+  const cur = shown !== null ? hours.find((p) => p.hour === shown) ?? null : hours[Math.min(hours.length - 1, 12)] ?? null;
   const maxFace = Math.max(3, ...hours.map((p) => p.faceFt)) * 1.15, maxTp = Math.max(10, ...hours.map((p) => p.tp ?? 0)) * 1.1, maxWind = Math.max(15, ...hours.map((p) => p.windKts ?? 0)) * 1.1;
   const tv = tide.series.map((s) => s.v); const tMin = Math.min(0, ...tv), tMax = Math.max(1, ...tv);
   const t0 = hours[0]?.t ?? 0, t1 = hours[hours.length - 1]?.t ?? 1;
@@ -53,7 +58,7 @@ export default function ForecastDrawer({ open, onClose, spotName, tier, dayLabel
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: TIER[tier], whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{spotName}</div>
-            <div style={{ fontSize: 10, color: "#9fb1bc", letterSpacing: ".06em", textTransform: "uppercase" }}>{dayLabel}{cur ? ` · ${tick(cur.hour)} · ${Math.max(1, Math.round(cur.faceFt))}–${Math.round(cur.faceFt * 1.3)} ft` : ""}</div>
+            <div style={{ fontSize: 10, color: "#9fb1bc", letterSpacing: ".06em", textTransform: "uppercase" }}>{dayLabel}{cur ? ` · ${tick(cur.hour)}` : ""}</div>
           </div>
           <div role="tablist" style={{ display: "flex", background: "rgba(255,255,255,.08)", borderRadius: 8, padding: 2 }}>
             {(["hourly", "daily"] as const).map((k) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{ minHeight: 30, padding: "0 10px", borderRadius: 6, border: 0, cursor: "pointer", background: tab === k ? "#4798b7" : "transparent", color: tab === k ? "#0e2029" : "#e8eef2", font: "600 10px 'Barlow Condensed','Barlow',sans-serif", letterSpacing: ".06em", textTransform: "uppercase" }}>{k === "hourly" ? "24-Hour" : "7-Day"}</button>)}
@@ -64,6 +69,7 @@ export default function ForecastDrawer({ open, onClose, spotName, tier, dayLabel
         {tab === "hourly" ? (
           <div className="nesurf-drawer-body" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => onHoverHour(null)} style={{ display: "flex", flexDirection: "column", gap: 10, touchAction: "pan-y" }}>
             {hours.length === 0 ? <div style={{ fontSize: 11, color: "#9fb1bc" }}>No hourly data for this day yet.</div> : <>
+              {cur && <div style={{ borderRadius: 12, background: "linear-gradient(180deg, rgba(0,229,255,.06), rgba(11,25,44,.35))", border: "1px solid rgba(255,255,255,.08)", padding: "4px 6px 2px" }}><WaveAvatar faceFt={cur.faceFt} tpS={cur.tp} wind={windAt(cur)} width={320} /></div>}
               <Row title="Wave height" value={cur ? `${cur.faceFt.toFixed(1)} ft` : "—"}>
                 <path d={`${path(hours.map((p) => [xAt(p.hour), 54 - (p.faceFt / maxFace) * 50]))} L${xAt(hours[hours.length - 1].hour)},54 L${xAt(hours[0].hour)},54 Z`} fill="#00E5FF" fillOpacity={0.18} />
                 <path d={path(hours.map((p) => [xAt(p.hour), 54 - (p.faceFt / maxFace) * 50]))} fill="none" stroke="#00E5FF" strokeWidth={1.8} strokeLinejoin="round" />

@@ -11,6 +11,7 @@ Outputs
   ribbon.geojson      100 m high-water-mark segments with land→sea normal + exposure        → L2
   spots.geojson       breaks inside the bbox                                                → L4
   tiles/nh/…pbf       one multi-layer MVT per tile: layers `bathy`, `land`, `ribbon`
+  tiles/nh-dem/…png   Terrain-RGB DEM tiles (z 8–13) from the same CRM grid: bathymetry negative, land positive → MapLibre terrain
 """
 from __future__ import annotations
 
@@ -37,7 +38,7 @@ S, N, W, E = 42.80, 43.60, -70.85, -70.20          # Reed's regional bbox 2026-0
 BINS = [(0, 2), (2, 5), (5, 10), (10, 20), (20, 40), (40, 80), (80, 150), (150, 400)]
 MIN_CELLS = 16          # isobath speckle: regions / holes below this many 90 m cells are absorbed into their surroundings
 MAX_ZOOM = 13           # MapLibre overzooms vector tiles; z13 (≈14 m/px here) is plenty for smoothed isobaths
-OUT = REPO_ROOT / "public" / "data" / "nh"; TILES = REPO_ROOT / "public" / "tiles" / "nh"
+OUT = REPO_ROOT / "public" / "data" / "nh"; TILES = REPO_ROOT / "public" / "tiles" / "nh"; DEM = REPO_ROOT / "public" / "tiles" / "nh-dem"
 R = 6378137.0
 
 
@@ -60,7 +61,8 @@ def main() -> int:
     ds = xr.open_dataset(CRM_URL)
     z = ds["z"].sel(x=slice(W, E), y=slice(S, N)).load()
     xs, ys = z.x.values, z.y.values; res = float(xs[1] - xs[0])
-    depth = -z.values.astype(float); depth[~np.isfinite(depth)] = 0
+    elev = z.values.astype(float); elev[~np.isfinite(elev)] = 0
+    depth = -elev.copy()
     water = depth > 0
     r = 5; yy, xx = np.ogrid[-r:r + 1, -r:r + 1]; disk = (xx * xx + yy * yy) <= r * r
     water = ndimage.binary_dilation(ndimage.binary_opening(water, structure=disk), structure=np.ones((3, 3), bool)) & water
@@ -175,7 +177,41 @@ def main() -> int:
                 d = TILES / str(zl) / str(x); d.mkdir(parents=True, exist_ok=True); (d / f"{y}.pbf").write_bytes(data); count += 1
         print(f"z{zl} done ({count} tiles so far)", flush=True)
     print(f"wrote {count} tiles under {TILES}")
+    # DEM covers the bbox padded by 0.25° so the 3D floor does not end in a cliff at the tile edge
+    zp = ds["z"].sel(x=slice(W - 0.25, E + 0.25), y=slice(S - 0.25, N + 0.25)).load()
+    ep = zp.values.astype(float); ep[~np.isfinite(ep)] = 0
+    write_dem_tiles(ep, zp.y.values, zp.x.values, box=(S - 0.25, N + 0.25, W - 0.25, E + 0.25))
     return 0
+
+
+def write_dem_tiles(elev, ys, xs, box=(S, N, W, E), zooms=range(8, MAX_ZOOM + 1), size=256):
+    """Terrain-RGB tiles: value = (elev + 10000) / 0.1 packed into R,G,B (Mapbox/MapLibre 'mapbox' encoding). Each tile pixel
+    is sampled bilinearly from the CRM grid at its lon/lat; outside the grid the tile is left at sea level (0 m)."""
+    from PIL import Image
+    if DEM.exists(): shutil.rmtree(DEM)
+    lat0, lon0 = float(ys[0]), float(xs[0]); res = float(xs[1] - xs[0]); nlat, nlon = elev.shape
+    count = 0
+    for zl in zooms:
+        bs, bn, bw, be = box
+        x0, y0 = lonlat_to_tile(bw, bn, zl); x1, y1 = lonlat_to_tile(be, bs, zl); n = 2 ** zl
+        for x in range(x0, x1 + 1):
+            for y in range(y0, y1 + 1):
+                px = (np.arange(size) + 0.5) / size; lon = (x + px) / n * 360 - 180
+                lat = np.degrees(np.arctan(np.sinh(np.pi * (1 - 2 * (y + px) / n))))
+                fi = (lat[:, None] - lat0) / res; fj = (lon[None, :] - lon0) / res
+                i0 = np.clip(np.floor(fi).astype(int), 0, nlat - 2); j0 = np.clip(np.floor(fj).astype(int), 0, nlon - 2)
+                ti = np.clip(fi - i0, 0, 1); tj = np.clip(fj - j0, 0, 1)
+                v = elev[i0, j0] * (1 - ti) * (1 - tj) + elev[i0 + 1, j0] * ti * (1 - tj) + elev[i0, j0 + 1] * (1 - ti) * tj + elev[i0 + 1, j0 + 1] * ti * tj
+                inside = (fi >= 0) & (fi <= nlat - 1) & (fj >= 0) & (fj <= nlon - 1); v = np.where(inside, v, 0.0)
+                # feather to sea level over the outer `feather` degrees of the box so the 3D floor never ends in a cliff
+                f = 0.12; wy = np.clip(np.minimum(lat[:, None] - bs, bn - lat[:, None]) / f, 0, 1); wx = np.clip(np.minimum(lon[None, :] - bw, be - lon[None, :]) / f, 0, 1)
+                w = wy * wx; w = w * w * (3 - 2 * w); v = v * w
+                q = np.clip(np.round((v + 10000) / 0.1), 0, 2 ** 24 - 1).astype(np.uint32)
+                rgb = np.stack([(q >> 16) & 255, (q >> 8) & 255, q & 255], axis=-1).astype(np.uint8)
+                d = DEM / str(zl) / str(x); d.mkdir(parents=True, exist_ok=True)
+                Image.fromarray(rgb, "RGB").save(d / f"{y}.png", optimize=True); count += 1
+        print(f"dem z{zl} done ({count} tiles so far)", flush=True)
+    print(f"wrote {count} DEM tiles under {DEM}")
 
 
 if __name__ == "__main__":

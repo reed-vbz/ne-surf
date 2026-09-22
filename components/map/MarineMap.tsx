@@ -3,9 +3,14 @@
  * The map engine: 5-layer permanent marine architecture on MapLibre GL + deck.gl (interleaved) + self-hosted MVT.
  * All five layers render concurrently; there are no user toggles.
  *
- *   L0 ocean floor      MapLibre vector `fill`, `interpolate` on min_depth (NOAA CRM 3″ isobaths, public/tiles/nh layer `bathy`):
- *                       0 m #00E5FF → 20 m #0099CC → 100 m+ #0B192C
- *   L1 swell + wind     deck.gl TripsLayer comets (wind cyan, swell energy-coloured) + PathLayer refraction crests.
+ *   L0 ocean floor      3D. MapLibre terrain from Terrain-RGB DEM tiles baked from the same CRM grid (public/tiles/nh-dem,
+ *                       bathymetry negative, land positive, exaggerated ×6) with a hillshade, and the isobath vector `fill`
+ *                       (`interpolate` on min_depth: 0 m #00E5FF → 20 m #0099CC → 100 m+ #0B192C) draped on it. `fill-extrusion`
+ *                       cannot extrude below zero in MapLibre/Mapbox, so the DEM is what reveals canyons and sandbars.
+ *                       Camera defaults to pitch 60 / bearing −15 (isometric).
+ *   L1 swell + wind     deck.gl TripsLayer comets (wind cyan, swell energy-coloured) + PathLayer refraction crests, at sea level
+ *                       above the 3D floor. Shoaling: swell comet clocks run on travel time from the dispersion-relation phase
+ *                       speed, so heads slow over the shallow zones; crests bend by Snell ray tracing.
  *                       Every streamline has a random phase and is emitted in loop-spaced copies, so heads flow continuously
  *                       (no pulsing); the swell field is Snell-refracted on the depth grid before integration.
  *   L2 nearshore ribbon deck.gl PathLayer, 100 m shoreline segments, wind-to-beach colour #00FF88 / #FFB800 / #FF3366
@@ -44,13 +49,18 @@ interface Props {
 
 const B = REGION_BBOX;
 const BOUNDS: LngLatBoundsLike = [[B.west, B.south], [B.east, B.north]];
+const FIT = { padding: { top: 210, bottom: 150, left: 8, right: 8 }, bearing: -15 };
+/** isometric default: 60° on wide screens, 45° on phones so the whole region still fits above the bottom cards */
+const pitchFor = (w: number) => (w >= 900 ? 60 : 45);
 const LAND = "#1a2a33";
 const STYLE: StyleSpecification = {
   version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
   sources: {
     esri: { type: "raster", tileSize: 256, maxzoom: 18, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], attribution: "Imagery © Esri, Maxar, Earthstar Geographics · Bathymetry NOAA CRM" },
     region: { type: "vector", tiles: [`${typeof window !== "undefined" ? window.location.origin : ""}/tiles/${REGION_ID}/{z}/{x}/{y}.pbf`], minzoom: 8, maxzoom: 13, bounds: [B.west, B.south, B.east, B.north] },
+    dem: { type: "raster-dem", tiles: [`${typeof window !== "undefined" ? window.location.origin : ""}/tiles/${REGION_ID}-dem/{z}/{x}/{y}.png`], tileSize: 256, encoding: "mapbox", minzoom: 8, maxzoom: 13, bounds: [B.west, B.south, B.east, B.north] },
   },
+  terrain: { source: "dem", exaggeration: 6 },
   layers: [
     { id: "bg", type: "background", paint: { "background-color": LAND } },
     { id: "esri", type: "raster", source: "esri", paint: { "raster-saturation": -0.3, "raster-brightness-max": 0.75 } },
@@ -59,6 +69,7 @@ const STYLE: StyleSpecification = {
       "fill-color": ["interpolate", ["linear"], ["get", "min_depth"], 0, "#00E5FF", 5, "#00C4EA", 10, "#00ADD8", 20, "#0099CC", 40, "#0A6FA6", 80, "#0C3F72", 100, "#0B192C"],
       "fill-opacity": 0.85, "fill-antialias": false } },
     { id: "bathy-edge", type: "line", source: "region", "source-layer": "bathy", paint: { "line-color": "#00E5FF", "line-opacity": 0.10, "line-width": 0.6 } },
+    { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.55, "hillshade-shadow-color": "#03101d", "hillshade-highlight-color": "#bff4ff", "hillshade-accent-color": "#00E5FF", "hillshade-illumination-direction": 320 } },
     { id: "deck-anchor", type: "background", paint: { "background-opacity": 0 } },   // L1 + L2 (deck.gl) interleave before this
     // L3 — land above L0–L2: satellite shows through (fill at 0), the antialiased shoreline line marks the exact 0 m edge
     { id: "land-fill", type: "fill", source: "region", "source-layer": "land", paint: { "fill-color": LAND, "fill-opacity": 0, "fill-antialias": true } },
@@ -75,11 +86,19 @@ const LOOP = { wind: 48, swell: 44 };   // points between comet heads on one str
 const TRAIL = { wind: 12, swell: 14 };  // lit points behind each head (¼–⅓ of the loop: comets read as motion, not lines)
 const CREST_MAX_DEPTH = 15;             // metres: crest lines only where the swell is visibly refracting
 const cometColor = (hsM: number, tpS: number) => ramp(SWELL_STOPS, 0.35 + 0.65 * swellEnergy(hsM * 3.28084, tpS));   // ramp low end lifted: a 1 px mark must stay visible on the dark base
-interface Comet extends Streamline { shift: number }
-/** Emit each streamline in LOOP-spaced copies: as currentTime wraps, copy j's head lands exactly where copy j+1's was → seamless flow. */
-function comets(lines: Streamline[], loop: number, trail: number): Comet[] {
+interface Comet extends Streamline { shift: number; times: number[] }
+/**
+ * Emit each streamline in LOOP-spaced copies: as currentTime wraps, copy j's head lands exactly where copy j+1's was → seamless
+ * flow. `clock(lon, lat)` returns the time one path step takes there (1 in deep water); for swell it is c_deep / c(h), the
+ * shoaling slow-down from the dispersion relation, so heads decelerate over the shallows.
+ */
+function comets(lines: Streamline[], loop: number, trail: number, clock: (lon: number, lat: number) => number = () => 1): Comet[] {
   const out: Comet[] = [];
-  for (const l of lines) { const copies = Math.ceil((l.path.length + trail) / loop) + 1; for (let j = 0; j < copies; j++) out.push({ ...l, shift: l.phase * loop - j * loop }); }
+  for (const l of lines) {
+    const times: number[] = [0]; for (let i = 1; i < l.path.length; i++) times.push(times[i - 1] + clock(l.path[i][0], l.path[i][1]));
+    const total = times[times.length - 1], copies = Math.ceil((total + trail) / loop) + 1;
+    for (let j = 0; j < copies; j++) out.push({ ...l, times, shift: l.phase * loop - j * loop });
+  }
   return out;
 }
 const hash01 = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return (h % 1000) / 1000; };
@@ -120,13 +139,14 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
 
   useEffect(() => {
     if (!el.current || map.current) return;
-    const m = new MLMap({ container: el.current, style: STYLE, bounds: BOUNDS, fitBoundsOptions: { padding: { top: 210, bottom: 150, left: 8, right: 8 } }, minZoom: 7.5, maxZoom: 15, attributionControl: { compact: true } });
+    const m = new MLMap({ container: el.current, style: STYLE, bounds: BOUNDS, fitBoundsOptions: FIT, pitch: pitchFor(el.current.clientWidth), bearing: -15, maxPitch: 72, minZoom: 7.5, maxZoom: 15, attributionControl: { compact: true } });
     t0.current = performance.now();
     m.on("load", () => {
       // deck.gl 9.4's interleaved integration reads map.transform; MapLibre 6 no longer exposes it on Map
       const mm = m as unknown as { transform?: unknown; _camera?: { transform?: unknown }; painter?: { transform?: unknown } };
       if (mm.transform === undefined) Object.defineProperty(m, "transform", { get: () => mm._camera?.transform ?? mm.painter?.transform, configurable: true });
       overlay.current = new MapboxOverlay({ interleaved: true, layers: [] }); m.addControl(overlay.current); setReady(true);
+      m.fitBounds(BOUNDS, { ...FIT, pitch: pitchFor(m.getContainer().clientWidth), duration: 0 });   // re-fit now that the pitched transform exists
     });
     m.on("click", () => propsRef.current.onSelect(null));
     map.current = m;
@@ -145,7 +165,8 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
     windLines.current = wind ? integrateStreamlines(wind, FLOW_BBOX, isOcean, { seedsAcross: 44, stepM: 200, maxSteps: 70, seed: 3 }) : [];
     swellLines.current = swell ? integrateStreamlines(refractSwell(swell, depth, tp), FLOW_BBOX, isOcean, { seedsAcross: 30, stepM: 220, maxSteps: 60, seed: 11 }) : [];
     windComets.current = comets(windLines.current, LOOP.wind, TRAIL.wind); thin.current.key = -1;
-    swellComets.current = comets(swellLines.current, LOOP.swell, TRAIL.swell);
+    const cDeep = phaseSpeed(2000, tp);
+    swellComets.current = comets(swellLines.current, LOOP.swell, TRAIL.swell, (lon, lat) => { if (!inGrid(depth, lat, lon)) return 1; const h = depthAt(depth, lat, lon); return h <= 0 ? 1 : Math.min(3, cDeep / phaseSpeed(h, tp)); });
     rayFields.current = spots.filter((s) => s.dp !== null && s.tp !== null && s.hs_m > 0.3).map((s) => {
       const field = traceRays(tileAround(depth, s.lat, s.lon), s.lat, s.lon, s.dp!, s.tp!, s.hs_m, { rays: 25, spanM: 5000, startKm: 7, stepM: 50 });
       let tCut = Infinity;
@@ -212,10 +233,10 @@ export default function MarineMap({ spots, buoys, wind, swell, depth, ribbon, on
       const out: Layer[] = [];
       const beforeId = "deck-anchor";
       if (thin.current.wind.length) out.push(new TripsLayer({ id: "wind-flow", beforeId, data: thin.current.wind,
-        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.path.map((_, i) => i + d.shift), getColor: () => [100, 213, 204, 190], widthUnits: "pixels", getWidth: 1.3, capRounded: true, jointRounded: true,
+        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: () => [100, 213, 204, 190], widthUnits: "pixels", getWidth: 1.3, capRounded: true, jointRounded: true,
         trailLength: TRAIL.wind, currentTime: (t * 9) % LOOP.wind, fadeTrail: true, opacity: 0.8 }));
       if (thin.current.swell.length) out.push(new TripsLayer({ id: "swell-flow", beforeId, data: thin.current.swell,
-        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.path.map((_, i) => i + d.shift), getColor: (d: Comet) => { const c = cometColor(d.speed, tpRef.current); return [c[0], c[1], c[2], 235]; }, updateTriggers: { getColor: tpRef.current },
+        getPath: (d: Comet) => d.path, getTimestamps: (d: Comet) => d.times.map((t) => t + d.shift), getColor: (d: Comet) => { const c = cometColor(d.speed, tpRef.current); return [c[0], c[1], c[2], 235]; }, updateTriggers: { getColor: tpRef.current },
         widthUnits: "pixels", getWidth: 2, capRounded: true, jointRounded: true, trailLength: TRAIL.swell, currentTime: (t * 5.5) % LOOP.swell, fadeTrail: true, opacity: 0.85 }));
       { const every = Math.max(12, Math.min(60, 250 / (1.56 * tpRef.current))), phase = (t % (every / 10)) * 10;   // ≈250 m between crests in deep water
         const paths: Array<{ path: Array<[number, number]>; color: number[]; w: number }> = [];

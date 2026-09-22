@@ -8,6 +8,7 @@
  * the 24px chevrons and 8px segments carry invisible ≥44px hit areas (.hit44 / .hit44-seg).
  */
 import type { CSSProperties, ReactNode } from "react";
+import AnticipatoryPill, { type PillModel } from "./AnticipatoryPill";
 
 export interface ScreenModel {
   dateLabel: string;
@@ -16,14 +17,15 @@ export interface ScreenModel {
   layerCard: { title: string; body: string };
   callouts: Array<{ id: string; name: string; body: string; left: number; top: number; color?: string }>;
   hotspot: { rating: string; ratingColor: string; line1: string; line2: string; pinColor: string };
-  searchValue: string;
+  /** anticipatory zero-click pill (replaced the search bar 2026-09-22) */
+  pill: PillModel;
   /** position of the timeline knob inside the active day (0–1); undefined = centred, as in ui-reference.html */
   knobFraction?: number;
 }
 
 export interface ScreenHandlers {
   onPrev: () => void; onNext: () => void; onPickDay: (i: number) => void;
-  onSearch: (q: string) => void;
+  onPill: () => void;
   onForecast: () => void; onMenu: () => void; onHotspot: () => void;
 }
 
@@ -60,13 +62,9 @@ export default function OverviewScreen({ m, h, map, children }: { m: ScreenModel
         </button>
       </div>
 
-      {/* SEARCH BAR (the mode/layer chips were removed 2026-09-22: all five map layers render permanently) */}
-      <div style={{ position: "absolute", left: 0, top: 84, width: "100%", height: 44, background: "#2c3a42", boxSizing: "border-box", padding: "0px 8px", display: "flex", alignItems: "center", gap: 5, zIndex: 5 }}>
-        <label style={{ flexGrow: 1, flexShrink: 1, height: 30, minWidth: 56, borderRadius: 6, background: "#394850", display: "flex", alignItems: "center", gap: 5, padding: "0px 7px", boxSizing: "border-box" }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9fb1bc" strokeWidth="2.4" strokeLinecap="round"><circle cx="11" cy="11" r="6"></circle><line x1="16" y1="16" x2="21" y2="21"></line></svg>
-          <input type="search" placeholder="Search" aria-label="Search breaks" value={m.searchValue} onChange={(e) => h.onSearch(e.target.value)}
-            style={{ flexGrow: 1, minWidth: 0, width: "100%", background: "transparent", border: 0, outline: "none", color: "#e8eef2", fontFamily: "inherit", fontSize: 10, padding: 0 }} />
-        </label>
+      {/* ANTICIPATORY PILL (replaced the search bar 2026-09-22: zero-click, the best break for this hour surfaces itself) */}
+      <div style={{ position: "absolute", left: 0, top: 84, width: "100%", height: 44, boxSizing: "border-box", padding: "0px 12px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5 }}>
+        <AnticipatoryPill p={m.pill} onClick={h.onPill} />
       </div>
 
       {/* 7-DAY TIMELINE */}

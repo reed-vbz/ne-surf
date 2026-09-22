@@ -4,10 +4,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import OverviewScreen, { type ScreenModel } from "@/components/screen/OverviewScreen";
 import ForecastDrawer, { type DayRow } from "@/components/screen/ForecastDrawer";
+import PolarRadar from "@/components/screen/PolarRadar";
+import type { WindLabel } from "@/components/screen/WaveAvatar";
 import type { MapBuoy, MapHover, MapSpot } from "@/components/map/MarineMap";
 import { atTime, loadHrrrStep, loadWw3Step, type GridIndex, type HrrrStep, type Ww3Step } from "@/lib/cache";
 import { byDay, dayKeyOf, forecastFor, representativePoint, type ForecastPoint } from "@/lib/forecast";
-import { hourlySeries, tideDay } from "@/lib/hourly";
+import { hourlySeries, tideDay, type HourPoint } from "@/lib/hourly";
 import { TIER, tierFor, WIND_ALIGN } from "@/lib/colors";
 import { bilinearField, windVectorField } from "@/lib/overlays";
 import { assessWind } from "@/lib/quality";
@@ -53,7 +55,6 @@ function PageInner() {
   const [selected, setSelected] = useState<string | null>(null);
   const [hover, setHover] = useState<MapHover | null>(null);
   const [hoverHour, setHoverHour] = useState<number | null>(null);
-  const [query, setQuery] = useState("");
   const [flyTo, setFlyTo] = useState<{ lon: number; lat: number; key: number } | null>(null);
   const [ww3Step, setWw3Step] = useState<Ww3Step | null>(null);
   const [hrrrStep, setHrrrStep] = useState<HrrrStep | null>(null);
@@ -101,8 +102,30 @@ function PageInner() {
   const TIER_WORD = { green: "Excellent", moderate: "Moderate", poor: "Poor" } as const;
   const hotWind = hot?.best?.cond.wind ? assessWind(hot.spot, hot.best.cond.wind) : null;
   const windWord = !hotWind ? "" : hotWind.label === "offshore" || hotWind.label === "glassy" ? "Optimal" : hotWind.label === "onshore" || hotWind.label === "cross-on" ? "Onshore" : "Cross-shore";
-  const go = (id: string) => { const s = REGION_SPOTS.find((x) => x.id === id); if (!s) { router.push(`/spots/${id}`); return; } setSelected(id); setQuery(""); setFlyTo({ lon: s.location.lon, lat: s.location.lat, key: ++flyKey.current }); };
-  const matches = query.trim() ? SPOTS.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6) : [];
+  const go = (id: string) => { const s = REGION_SPOTS.find((x) => x.id === id); if (!s) { router.push(`/spots/${id}`); return; } setSelected(id); setFlyTo({ lon: s.location.lon, lat: s.location.lat, key: ++flyKey.current }); };
+
+  // Anticipatory pill: the best break at the map's active hour (score of the point nearest mapTime), with its wind outlook
+  const nearest = (pts: ForecastPoint[], iso: string | null) => (iso ? pts.reduce((b, p) => (Math.abs(Date.parse(p.valid_time) - Date.parse(iso)) < Math.abs(Date.parse(b.valid_time) - Date.parse(iso)) ? p : b), pts[0]) : null);
+  const hourWord = (t: number) => { const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: NY, hour: "numeric", hour12: false }).format(new Date(t))) % 24; return h === 0 ? "midnight" : h === 12 ? "noon" : h < 12 ? `${h} AM` : `${h - 12} PM`; };
+  const pill = useMemo(() => {
+    const cands = daily.map((d) => ({ d, p: nearest(d.points, mapTime) })).filter((x) => x.p);
+    if (!cands.length || !mapTime) return { headline: data.loading ? "Reading the forecast…" : "No forecast yet", sub: "", accent: "#9c9ea1" };
+    const best = cands.reduce((b, x) => (x.p!.result.score > b.p!.result.score ? x : b), cands[0]); const p = best.p!, sp = best.d.spot, tier = tierFor(p.result.score);
+    const name = shortName(sp.name).charAt(0) + shortName(sp.name).slice(1).toLowerCase(), lo = Math.max(1, Math.round(p.result.face_ft)), hi = Math.round(p.result.face_ft * 1.3);
+    const size = `${lo}–${hi} ft${p.result.dominant ? ` @ ${p.result.dominant.tp.toFixed(0)} s` : ""}`;
+    const headline = tier === "green" ? `⚡ ${name} is firing: ${size}` : tier === "moderate" ? `${name} is the call: ${size}` : `Best bet: ${name}, ${size}`;
+    const hrs = day ? hourlySeries(best.d.points, day, data.hrrr?.spots.spots.find((s) => s.id === sp.id)?.series) : [];
+    const t0 = Date.parse(mapTime); const ahead = hrs.filter((h) => h.t >= t0 - 1.8e6 && h.t <= t0 + 6 * 3.6e6 && h.windKts != null && h.windFrom != null);
+    const off = ahead.map((h) => ({ h, a: assessWind(sp, { speed_kts: h.windKts!, dir_from_deg: h.windFrom! }) }));
+    const peak = off.reduce<typeof off[number] | null>((b, x) => (!b || x.a.offshore_kts > b.a.offshore_kts ? x : b), null);
+    const now = off.find((x) => Math.abs(x.h.t - t0) <= 1.8e6) ?? off[0];
+    let sub = "";
+    if (peak && peak.a.offshore_kts > 2) sub = peak.h.t - t0 > 1.8e6 ? `Offshore winds peaking at ${hourWord(peak.h.t)}` : `Offshore winds peaking now · ${Math.round(peak.h.windKts!)} kt`;
+    else if (now) sub = `Wind ${compass(now.h.windFrom!)} ${Math.round(now.h.windKts!)} kt · ${now.a.label}`;
+    return { headline, sub, accent: TIER[tier] };
+  }, [daily, mapTime, day, data.hrrr, data.loading]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const radarPoint = focus ? nearest(focus.points, mapTime) : null;
+  const windAt = (h: HourPoint): WindLabel => (focus && h.windKts != null && h.windFrom != null ? assessWind(focus.spot, { speed_kts: h.windKts, dir_from_deg: h.windFrom }).label : "unknown");
 
   const dayRows: DayRow[] = focus ? byDay(focus.points).slice(0, 7).map((d, i) => { const x = parts(d.best.valid_time); const b = d.best; const w = b.cond.wind ? assessWind(focus.spot, b.cond.wind) : null;
     return { key: d.day, label: `${x.wd} ${x.day}`, tier: tierFor(b.result.score), range: `${Math.max(1, Math.round(b.result.face_ft))}–${Math.round(b.result.face_ft * 1.3)} ft`, period: b.result.dominant ? `@ ${b.result.dominant.tp.toFixed(0)} s ${compass(b.result.dominant.dp)}` : "",
@@ -121,22 +144,17 @@ function PageInner() {
           line1: `${shortName(hot.spot.name).charAt(0) + shortName(hot.spot.name).slice(1).toLowerCase()}: ${Math.max(1, Math.round(hot.best.result.face_ft))}-${Math.round(hot.best.result.face_ft * 1.3)}ft${hot.best.result.dominant ? ` @ ${hot.best.result.dominant.tp.toFixed(0)}s` : ""}`,
           line2: hot.best.cond.wind ? `${compass(hot.best.cond.wind.dir_from_deg)} wind · ${windWord}` : "" }
       : { rating: "—", ratingColor: "#9c9ea1", pinColor: "#9c9ea1", line1: data.error ?? "Loading forecast", line2: "" },
-    searchValue: query,
+    pill,
   };
 
   return (
     <main style={{ position: "fixed", inset: 0 }}>
       <OverviewScreen m={refMode ? REFERENCE_MODEL : model}
         h={{ onPrev: () => setDayIdx((i) => Math.max(0, i - 1)), onNext: () => setDayIdx((i) => Math.min(days.length - 1, i + 1)), onPickDay: setDayIdx,
-             onSearch: setQuery, onForecast: () => setDrawerPref(!drawerOpen), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
+             onPill: () => { const id = daily.map((d) => ({ d, p: nearest(d.points, mapTime) })).filter((x) => x.p).sort((a, b) => b.p!.result.score - a.p!.result.score)[0]?.d.spot.id; if (id) { go(id); setDrawerPref(true); } }, onForecast: () => setDrawerPref(!drawerOpen), onMenu: () => router.push("/about"), onHotspot: () => hot && go(hot.spot.id) }}
         map={<MarineMap spots={spots} buoys={buoys} wind={wind} swell={swell} depth={depth} ribbon={ribbon} onHover={setHover} selectedId={selected} onSelect={setSelected} flyTo={flyTo} />}>
         {/* progress line under the search bar while data or an hour's grids load */}
         {(data.loading || stepLoading) && <div style={{ position: "absolute", left: 0, top: 128, height: 2, width: "100%", background: "#4798b7", zIndex: 7, transformOrigin: "left", animation: "nesurf-progress 1.2s ease-in-out infinite" }} />}
-        {/* search type-ahead */}
-        {matches.length > 0 && (
-          <ul style={{ position: "absolute", right: 8, top: 120, width: 220, borderRadius: 8, background: "#0e212a", boxShadow: "0px 4px 14px rgba(0,0,0,0.35)", listStyle: "none", margin: 0, padding: 4, zIndex: 8 }}>
-            {matches.map((s) => <li key={s.id}><button onClick={() => go(s.id)} style={{ display: "block", width: "100%", minHeight: 44, textAlign: "left", background: "transparent", border: 0, color: "#e8eef2", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", padding: "0 8px", cursor: "pointer" }}>{s.name} <span style={{ color: "#9fb1bc" }}>{s.state}</span></button></li>)}
-          </ul>)}
         {/* L4 hover tooltip (React) */}
         {hover && !refMode && (
           <div style={{ position: "absolute", left: Math.min(hover.x + 14, (typeof window !== "undefined" ? window.innerWidth : 390) - 236), top: hover.y + 14, zIndex: 9, width: 220, borderRadius: 8, background: "rgba(14,32,41,.95)", boxShadow: "0 4px 14px rgba(0,0,0,.4)", padding: "8px 10px", pointerEvents: "none", fontFamily: "'Barlow', system-ui, sans-serif" }}>
@@ -146,8 +164,13 @@ function PageInner() {
               <div style={{ fontSize: 10, color: "#e8eef2" }}>Wind {hover.spot.windKts !== null ? <><b>{Math.round(hover.spot.windKts)} kt</b> from {compass(hover.spot.windFrom!)}</> : "n/a"}{hover.ribbonAngle !== null ? <> · {Math.round(hover.ribbonAngle)}° off the beach · <span style={{ color: WIND_ALIGN[hover.ribbonTier as keyof typeof WIND_ALIGN] }}>{hover.ribbonTier}</span></> : null}</div>
               <div style={{ fontSize: 10, color: "#b8c7d1" }}>Score {hover.spot.score} · {hover.spot.tier === "green" ? "Green" : hover.spot.tier === "moderate" ? "Moderate" : "Poor"}</div></>}
           </div>)}
+        {/* polar swell radar, bottom-left above the legends (hidden in the pixel-diff fixture like the drawer) */}
+        {!refMode && focus && (
+          <div style={{ position: "absolute", left: 12, bottom: 160, zIndex: 4 }}>
+            <PolarRadar trains={radarPoint?.cond.trains ?? []} facingDeg={focus.spot.facing_deg} window={focus.spot.swell.window} title="Swell radar" sub={`${shortName(focus.spot.name)}${mapTime ? ` · ${hourWord(Date.parse(mapTime))}` : ""}`} />
+          </div>)}
         {!refMode && <ForecastDrawer open={drawerOpen} onClose={() => setDrawerPref(false)} spotName={focus?.spot.name ?? "—"} tier={focus ? tierFor(focus.best!.result.score) : "poor"} dayLabel={days[dayIdx]?.label ?? ""}
-          hours={hours} tide={tide} activeHour={hoverHour} onHoverHour={setHoverHour} days={dayRows} onPickDay={setDayIdx} />}
+          hours={hours} tide={tide} activeHour={hoverHour} onHoverHour={setHoverHour} days={dayRows} onPickDay={setDayIdx} windAt={windAt} defaultHour={mapTime ? Number(new Intl.DateTimeFormat("en-US", { timeZone: NY, hour: "numeric", hour12: false }).format(new Date(mapTime))) % 24 : null} />}
       </OverviewScreen>
     </main>
   );

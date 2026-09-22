@@ -36,3 +36,8 @@ Per Reed's UI refactor directive: the three mode chips (Forecast slider / Refrac
 search bar and the Layers map control became the Forecast-drawer control (chart icon, same box). `ui-reference.html` was edited
 accordingly and `ui-reference.png` re-rendered from it with `node scripts/render-reference.mjs` (Chrome for Testing, 390×844 @2x).
 The previous PNG is kept as `ui-reference-v1-2026-09-21.png`. The glass forecast drawer is closed in the reference (phone default).
+
+## v3 — 2026-09-22 (later)
+
+The search bar row became the anticipatory pill band: transparent band, a floating glass pill (backdrop-blur, black/40, white/20 border) with the
+best break for the active hour. `ui-reference.png` re-rendered again. The polar radar and the drawer are dynamic widgets and stay out of the fixture.
