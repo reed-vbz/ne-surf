@@ -31,6 +31,21 @@ def sample_bc(rng: random.Random) -> tuple[float, float, float, float]:
     return rng.uniform(0.3, 5.0), rng.uniform(4.0, 17.0), rng.uniform(20.0, 200.0), rng.uniform(0.0, 15.0)
 
 
+HELD_OUT = [(1.5, 11.0, 95.0), (3.0, 14.0, 140.0), (0.8, 7.0, 60.0), (2.2, 9.0, 120.0)]
+
+
+def held_out_metrics(model: SwanUNet, geom: dict) -> dict[str, float]:
+    """Mean over fixed held-out boundary conditions: H_s MAE (m) and relative wavenumber error over water, vs the teacher."""
+    model.eval(); w = torch.from_numpy(geom["water"]); hs_err = []; k_err = []
+    with torch.no_grad():
+        for hs0, tp, d in HELD_OUT:
+            p = model(input_tensor(geom, hs0, tp, d, 5.0))[0]; y = teacher_fields(geom, hs0, tp, d)[0]
+            hs_err.append(float(((p[0] - y[0]).abs() * w).sum() / w.sum()))
+            k_err.append(float((((p[3] - y[3]).abs() / y[3].clamp_min(1e-4)) * w).sum() / w.sum()))
+    model.train()
+    return {"hs_mae_m": sum(hs_err) / len(hs_err), "k_rel_err": sum(k_err) / len(k_err)}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--epochs", type=int, default=20); ap.add_argument("--samples", type=int, default=120); ap.add_argument("--lr", type=float, default=2e-3)
@@ -63,8 +78,10 @@ def main(argv=None) -> int:
             tot += float(loss); parts = {k: parts.get(k, 0) + v for k, v in terms.items()}
         sched.step()
         print(f"epoch {ep + 1:3d}  loss {tot / len(data):.4f}  " + "  ".join(f"{k} {v / len(data):.4f}" for k, v in parts.items()), flush=True)
+    metrics = held_out_metrics(model, geom)
+    print("held-out vs teacher: " + ", ".join(f"{k} {v:.3f}" for k, v in metrics.items()))
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"state_dict": model.state_dict(), "base": a.base, "c_in": 8, "grid": list(geom["depth"].shape), "res_m": dx}, a.out)
+    torch.save({"state_dict": model.state_dict(), "base": a.base, "c_in": 8, "grid": list(geom["depth"].shape), "res_m": dx, "metrics": metrics, "epochs": a.epochs, "samples": len(data)}, a.out)
     print(f"saved {a.out}")
     return 0
 

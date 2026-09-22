@@ -23,6 +23,12 @@ PYTHONPATH=. .venv/bin/uvicorn pinn.api:app --port 8100         # inference API 
 | `api.py` | FastAPI: `/health`, `POST /infer`, `/infer.png` (shader texture), `/infer.f32` (Float32 planar for a raw data texture / UBO), `/index.json` + `/fNNN.png` (drop-in for `NEXT_PUBLIC_PINN_API`) |
 | `texture.py` | data bridge: (H_s, k) → travel-time field → RGBA8 texture (R,G = t 16-bit, B = H_s) or Float32 planar |
 
+**First training run (2026-09-22, 10 epochs × 60 teacher fields, CPU ≈ 12 min):** loss 5.66 → 1.77, no divergence after the
+sinh clamp; held-out vs the teacher: H_s MAE 0.30 m, wavenumber error 64 %. That is a working pipeline, not a usable model, so the API
+**gates** checkpoints on held-out metrics (`GATE` in `api.py`: H_s MAE ≤ 0.10 m and k error ≤ 15 %) and keeps serving the teacher until
+one passes; `/health` shows the checkpoint's metrics and `passes_gate`. More epochs/samples (`--epochs 60 --samples 300`) or real SWAN
+targets are the path to passing it.
+
 **Honesty note.** No SWAN runs exist for this region yet, so a trained checkpoint is a surrogate of the physics teacher,
 not of SWAN. The API and the published textures (`workers/nesurf/wavefield.py`, run by the ingest cron) use the teacher
 until a checkpoint trained on real SWAN output is dropped at `.scratch/pinn/checkpoint.pt`. Buoy calibration uses

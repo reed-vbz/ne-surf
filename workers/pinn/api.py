@@ -10,8 +10,8 @@ Real-time inference API (FastAPI).
   GET  /index.json + /fNNN.png                           → the same contract as the published cache (drop-in for
                                                           NEXT_PUBLIC_PINN_API): every WW3 step, inferred on request
 
-Inference: the U-Net checkpoint when workers/.scratch/pinn/checkpoint.pt exists, else the physics teacher (identical
-outputs to the published textures). Calibration: the H_s field is scaled by the live NDBC ratio obs / model from the
+Inference: the U-Net checkpoint when workers/.scratch/pinn/checkpoint.pt exists AND its held-out metrics (recorded by
+train.py) pass GATE, else the physics teacher (identical outputs to the published textures); /health reports both. Calibration: the H_s field is scaled by the live NDBC ratio obs / model from the
 calibration worker (buoys 44097 and 44098 — 44018 has been offline/404 since at least 2026-09-21), damped by pair count.
 """
 from __future__ import annotations
@@ -45,10 +45,26 @@ def geometry():
     return load_geometry()
 
 
+# a checkpoint is served only when it beats these held-out thresholds against the physics teacher (train.py records them);
+# otherwise the API keeps the teacher and /health says so — an under-trained network never degrades the live field
+GATE = {"hs_mae_m": 0.10, "k_rel_err": 0.15}
+
+
+@lru_cache(maxsize=1)
+def checkpoint() -> dict | None:
+    return torch.load(CKPT, map_location="cpu") if CKPT.exists() else None
+
+
+def checkpoint_passes(ck: dict | None) -> bool:
+    m = (ck or {}).get("metrics")
+    return bool(m) and m["hs_mae_m"] <= GATE["hs_mae_m"] and m["k_rel_err"] <= GATE["k_rel_err"]
+
+
 @lru_cache(maxsize=1)
 def model() -> SwanUNet | None:
-    if not CKPT.exists(): return None
-    ck = torch.load(CKPT, map_location="cpu"); m = SwanUNet(c_in=ck["c_in"], base=ck["base"]); m.load_state_dict(ck["state_dict"]); m.eval()
+    ck = checkpoint()
+    if not ck or not checkpoint_passes(ck): return None
+    m = SwanUNet(c_in=ck["c_in"], base=ck["base"]); m.load_state_dict(ck["state_dict"]); m.eval()
     return m
 
 
@@ -84,7 +100,9 @@ def infer(bc: Boundary) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray,
 @app.get("/health")
 def health():
     g = geometry(); ratio, used = calibration_ratio()
-    return {"model": "checkpoint" if model() is not None else "physics-teacher", "grid": list(g["depth"].shape), "res_m": g["res_m"], "calibration": {"ratio_hs": ratio, "buoys": used}}
+    ck = checkpoint()
+    return {"model": "checkpoint" if model() is not None else "physics-teacher", "checkpoint": None if not ck else {"metrics": ck.get("metrics"), "epochs": ck.get("epochs"), "samples": ck.get("samples"), "passes_gate": checkpoint_passes(ck), "gate": GATE},
+            "grid": list(g["depth"].shape), "res_m": g["res_m"], "calibration": {"ratio_hs": ratio, "buoys": used}}
 
 
 @app.post("/infer")
